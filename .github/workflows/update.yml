@@ -19,7 +19,7 @@ jobs:
           node-version: '20'
 
       - name: 패키지 설치
-        run: npm install @supabase/supabase-js
+        run: npm install @supabase/supabase-js ws
 
       - name: 파이프라인 실행
         env:
