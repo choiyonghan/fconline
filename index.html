@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FC Online 상대 닉네임별 전적 분석 (API키 자동 로테이션)</title>
+  <title>FC Online 상대 닉네임별 전적 분석 (전역 캐시 적용)</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -13,121 +13,38 @@
       background-color: #f8fafc;
       color: #1e293b;
     }
-    h1 {
-      text-align: center;
-      color: #0f172a;
-      margin-bottom: 24px;
-    }
-    .nickname-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: center;
-      margin-bottom: 24px;
-    }
+    h1 { text-align: center; color: #0f172a; margin-bottom: 8px; }
+    .update-time { text-align: center; font-size: 13px; color: #64748b; margin-bottom: 24px; }
+    .nickname-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 24px; }
     .btn-nickname {
-      background-color: #2563eb;
-      color: white;
-      border: none;
-      padding: 10px 18px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      background-color: #2563eb; color: white; border: none; padding: 10px 18px;
+      border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
     }
-    .btn-nickname:hover {
-      background-color: #1d4ed8;
-      transform: translateY(-1px);
-    }
-    .btn-nickname.active {
-      background-color: #0f172a;
-    }
-    .btn-nickname:disabled {
-      background-color: #94a3b8;
-      cursor: not-allowed;
-    }
-    #status {
-      text-align: center;
-      font-weight: 600;
-      margin: 20px 0;
-      color: #64748b;
-      min-height: 24px;
-    }
-    .table-container {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-      overflow-x: auto;
-      display: none;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: center;
-      white-space: nowrap;
-    }
-    th, td {
-      padding: 14px 10px;
-      border-bottom: 1px solid #e2e8f0;
-      font-size: 13px;
-    }
-    th {
-      background-color: #0f172a;
-      color: white;
-      font-weight: 600;
-    }
-    tr:last-child td {
-      border-bottom: none;
-    }
-    tr:hover {
-      background-color: #f1f5f9;
-    }
-    tr.wook-row {
-      background-color: #fffbeb;
-    }
-    tr.wook-row:hover {
-      background-color: #fef3c7;
-    }
-    .wook-badge {
-      display: inline-block;
-      background-color: #d4af37;
-      color: #111;
-      font-size: 11px;
-      font-weight: bold;
-      padding: 2px 6px;
-      border-radius: 4px;
-      margin-left: 6px;
-    }
-    .opponent-cell {
-      font-weight: bold;
-      color: #0f172a;
-      text-align: left;
-      padding-left: 16px;
-    }
+    .btn-nickname:hover { background-color: #1d4ed8; }
+    .btn-nickname.active { background-color: #0f172a; }
+    #status { text-align: center; font-weight: 600; margin: 20px 0; color: #64748b; }
+    .table-container { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); overflow-x: auto; display: none; }
+    table { width: 100%; border-collapse: collapse; text-align: center; white-space: nowrap; }
+    th, td { padding: 14px 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+    th { background-color: #0f172a; color: white; font-weight: 600; }
+    tr:hover { background-color: #f1f5f9; }
+    tr.wook-row { background-color: #fffbeb; }
+    .wook-badge { background-color: #d4af37; color: #111; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
+    .opponent-cell { font-weight: bold; color: #0f172a; text-align: left; padding-left: 16px; }
     .win-text { color: #16a34a; font-weight: bold; }
     .lose-text { color: #dc2626; font-weight: bold; }
     .draw-text { color: #64748b; font-weight: bold; }
-    
-    .wook-score-box {
-      font-size: 12px;
-      line-height: 1.4;
-      text-align: left;
-    }
-    .wook-winner {
-      font-weight: bold;
-      color: #b45309;
-    }
+    .wook-score-box { font-size: 12px; line-height: 1.4; text-align: left; }
+    .wook-winner { font-weight: bold; color: #b45309; }
   </style>
 </head>
 <body>
 
   <h1>FC Online 상대 닉네임별 전적 분석</h1>
-  
-  <div class="nickname-container" id="nicknameButtons"></div>
+  <div class="update-time" id="updateTime">데이터 로딩 중...</div>
 
-  <div id="status">닉네임 버튼을 클릭하면 최근 100경기를 분석하여 상대별 전적을 그룹화합니다.</div>
+  <div class="nickname-container" id="nicknameButtons"></div>
+  <div id="status">닉네임을 선택해주세요.</div>
 
   <div class="table-container" id="tableContainer">
     <table>
@@ -144,210 +61,61 @@
           <th>🏆 욱식 점수 및 승패</th>
         </tr>
       </thead>
-      <tbody id="resultTableBody">
-      </tbody>
+      <tbody id="resultTableBody"></tbody>
     </table>
   </div>
 
   <script>
-    // 429 감지 시 순서대로 교체할 API 키 목록
-    const NEXON_API_KEYS = [
-      "test_7ef1de8b64f76f75c505bc5ff4a09ade1511e2129a0e67a3e068d4e220c828faefe8d04e6d233bd35cf2fabdeb93fb0d",
-      "test_7ef1de8b64f76f75c505bc5ff4a09adec77ef45654b031ad16ce4d4f623e5f57efe8d04e6d233bd35cf2fabdeb93fb0d",
-      "test_7ef1de8b64f76f75c505bc5ff4a09ade2b938a6649deba00303f77b12079511defe8d04e6d233bd35cf2fabdeb93fb0d"
-    ];
-
-    let currentApiKeyIndex = 0; // 현재 사용 중인 API 키 인덱스
-
-    const NICKNAMES = [
-      "내혀를가져가",
-      "지린성에사는욱구",
-      "욱냥0I",
-      "서울쥐",
-      "아기블루스",
-      "ST반니스텔로이",
-      "프란체스co토티"
-    ];
-
+    const NICKNAMES = ["내혀를가져가", "지린성에사는욱구", "욱냥0I", "서울쥐", "아기블루스", "ST반니스텔로이", "프란체스co토티"];
     const WOOK_NICKNAMES = ["지린성에사는욱구", "욱냥0I"];
+    let cachedData = null;
 
-    // 중복 호출 방지 캐시 메모리
-    const apiCache = {};
+    async function loadCacheData() {
+      const statusEl = document.getElementById("status");
+      const timeEl = document.getElementById("updateTime");
+      try {
+        // 캐시 파일 로드 (브라우저 캐시 방지 파라미터 추가)
+        const response = await fetch(`./data.json?t=${new Date().getTime()}`);
+        cachedData = await response.json();
 
-    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-    // 429 감지 및 API 키 자동 스위칭 적용 Fetch 함수
-    async function fetchNexonApi(url) {
-      while (currentApiKeyIndex < NEXON_API_KEYS.length) {
-        const apiKey = NEXON_API_KEYS[currentApiKeyIndex];
-        const response = await fetch(url, {
-          headers: { "x-nxopen-api-key": apiKey }
-        });
-
-        // 429 Too Many Requests 발생 시 키 자동 교체 후 재시도
-        if (response.status === 429) {
-          console.warn(`[429 에러 발생] API 키(${currentApiKeyIndex + 1}번) 제한 초과. 다음 키로 교체합니다.`);
-          currentApiKeyIndex++;
-
-          if (currentApiKeyIndex < NEXON_API_KEYS.length) {
-            const statusEl = document.getElementById("status");
-            if (statusEl) {
-              statusEl.innerText = `429 요청 제한 발생으로 API 키를 ${currentApiKeyIndex + 1}번 키로 자동 교체합니다...`;
-            }
-            await sleep(100); // 키 전환 시 짧은 대기
-            continue; // 루프 재실행 (새로운 키로 동일 URL 다시 호출)
-          } else {
-            throw new Error("모든 API 키가 요청 제한(429)에 도달했습니다. 잠시 후 다시 시도해주세요.");
-          }
+        if (cachedData.updatedAt) {
+          const date = new Date(cachedData.updatedAt);
+          timeEl.innerText = `최종 데이터 업데이트: ${date.toLocaleString("ko-KR")}`;
         }
-
-        if (!response.ok) throw new Error(`API 오류: ${response.status}`);
-        return await response.json();
+        statusEl.innerText = "버튼을 누르면 즉시 미리 집계된 전적을 확인합니다.";
+        initButtons();
+      } catch (e) {
+        statusEl.innerText = "데이터 캐시 파일을 불러오는데 실패했습니다.";
+        timeEl.innerText = "";
       }
-
-      throw new Error("사용 가능한 API 키가 없습니다.");
     }
 
     function initButtons() {
       const container = document.getElementById("nicknameButtons");
+      container.innerHTML = "";
       NICKNAMES.forEach(nickname => {
         const btn = document.createElement("button");
         btn.className = "btn-nickname";
         btn.innerText = nickname;
-        btn.onclick = () => handleNicknameClick(nickname, btn);
+        btn.onclick = () => showUserStat(nickname, btn);
         container.appendChild(btn);
       });
     }
 
-    async function handleNicknameClick(selectedNickname, btnElement) {
-      const allButtons = document.querySelectorAll(".btn-nickname");
-      allButtons.forEach(b => b.classList.remove("active"));
+    function showUserStat(selectedNickname, btnElement) {
+      document.querySelectorAll(".btn-nickname").forEach(b => b.classList.remove("active"));
       btnElement.classList.add("active");
 
-      const statusEl = document.getElementById("status");
-      const tableContainer = document.getElementById("tableContainer");
-      const tableBody = document.getElementById("resultTableBody");
+      const opponentGroup = cachedData.users ? cachedData.users[selectedNickname] : null;
 
-      // 캐시된 결과가 있으면 즉시 출력
-      if (apiCache[selectedNickname]) {
-        renderGroupedTable(selectedNickname, apiCache[selectedNickname].opponentGroup);
-        statusEl.innerText = `'${selectedNickname}' 님의 분석 결과입니다. (캐시 데이터)`;
+      if (!opponentGroup || Object.keys(opponentGroup).length === 0) {
+        document.getElementById("status").innerText = `'${selectedNickname}' 님의 수집된 데이터가 없습니다.`;
+        document.getElementById("tableContainer").style.display = "none";
         return;
       }
 
-      tableContainer.style.display = "none";
-      tableBody.innerHTML = "";
-      allButtons.forEach(b => b.disabled = true);
-      statusEl.innerText = `'${selectedNickname}' 님의 OUID를 조회 중입니다...`;
-
-      try {
-        const userData = await fetchNexonApi(`https://open.api.nexon.com/fconline/v1/id?nickname=${encodeURIComponent(selectedNickname)}`);
-        const ouid = userData.ouid;
-
-        statusEl.innerText = `'${selectedNickname}' 님의 최근 100경기 ID 목록 수집 중...`;
-
-        const matchIds = await fetchNexonApi(`https://open.api.nexon.com/fconline/v1/user/match?ouid=${ouid}&matchtype=40&offset=0&limit=100`);
-
-        if (!matchIds || matchIds.length === 0) {
-          statusEl.innerText = `'${selectedNickname}' 님의 최근 매치 기록이 없습니다.`;
-          allButtons.forEach(b => b.disabled = false);
-          return;
-        }
-
-        const matchDetails = [];
-        const BATCH_SIZE = 1;
-        const DELAY_MS = 1;
-
-        for (let i = 0; i < matchIds.length; i += BATCH_SIZE) {
-          const chunk = matchIds.slice(i, i + BATCH_SIZE);
-          const currentProgress = Math.min(i + BATCH_SIZE, matchIds.length);
-          
-          statusEl.innerText = `매치 상세 정보를 수집 중입니다... (${currentProgress} / ${matchIds.length})`;
-
-          const chunkResults = await Promise.all(
-            chunk.map(matchId => 
-              fetchNexonApi(`https://open.api.nexon.com/fconline/v1/match-detail?matchid=${matchId}`).catch(() => null)
-            )
-          );
-
-          matchDetails.push(...chunkResults);
-
-          if (i + BATCH_SIZE < matchIds.length) {
-            await sleep(DELAY_MS);
-          }
-        }
-
-        const opponentGroup = {};
-
-        matchDetails.forEach(detail => {
-          if (!detail || !detail.matchInfo) return;
-
-          const myInfo = detail.matchInfo.find(info => info.ouid === ouid);
-          const opponentInfo = detail.matchInfo.find(info => info.ouid !== ouid);
-
-          const opponentNickname = opponentInfo ? opponentInfo.nickname : "상대 미상";
-
-          if (!opponentGroup[opponentNickname]) {
-            opponentGroup[opponentNickname] = {
-              total: 0,
-              wins: 0,
-              draws: 0,
-              losses: 0,
-              goalsFor: 0,
-              goalsAgainst: 0,
-              possessionSum: 0,
-              shootTotalSum: 0,
-              effectiveShootSum: 0,
-              passTrySum: 0,
-              passSuccessSum: 0
-            };
-          }
-
-          const group = opponentGroup[opponentNickname];
-          group.total += 1;
-
-          if (myInfo) {
-            if (myInfo.matchDetail) {
-              const result = myInfo.matchDetail.matchResult;
-              if (result === "승") group.wins += 1;
-              else if (result === "무") group.draws += 1;
-              else if (result === "패") group.losses += 1;
-
-              group.possessionSum += (myInfo.matchDetail.possession || 0);
-            }
-
-            if (myInfo.shoot) {
-              group.goalsFor += (myInfo.shoot.goalTotal || 0);
-              group.shootTotalSum += (myInfo.shoot.shootTotal || 0);
-              group.effectiveShootSum += (myInfo.shoot.effectiveShootTotal || 0);
-            }
-
-            if (opponentInfo && opponentInfo.shoot) {
-              group.goalsAgainst += (opponentInfo.shoot.goalTotal || 0);
-            }
-
-            if (myInfo.pass) {
-              group.passTrySum += (myInfo.pass.passTry || 0);
-              group.passSuccessSum += (myInfo.pass.passSuccess || 0);
-            }
-          }
-        });
-
-        // 캐시 저장
-        apiCache[selectedNickname] = {
-          opponentGroup: opponentGroup,
-          totalMatchCount: matchIds.length
-        };
-
-        renderGroupedTable(selectedNickname, opponentGroup);
-        statusEl.innerText = `'${selectedNickname}' 님의 최근 ${matchIds.length}경기 (총 ${Object.keys(opponentGroup).length}명의 상대) 분석 완료!`;
-
-      } catch (error) {
-        console.error(error);
-        statusEl.innerText = error.message || "데이터 처리 중 오류가 발생했습니다.";
-      } finally {
-        allButtons.forEach(b => b.disabled = false);
-      }
+      renderGroupedTable(selectedNickname, opponentGroup);
+      document.getElementById("status").innerText = `'${selectedNickname}' 님의 전적 분석 데이터입니다.`;
     }
 
     function renderGroupedTable(selectedNickname, opponentGroup) {
@@ -360,7 +128,6 @@
       sortedOpponents.forEach(opName => {
         const stat = opponentGroup[opName];
         const winRate = stat.total > 0 ? ((stat.wins / stat.total) * 100).toFixed(1) : "0.0";
-        
         const avgPossession = stat.total > 0 ? (stat.possessionSum / stat.total).toFixed(1) : "0";
         const avgEffectiveShoot = stat.total > 0 ? (stat.effectiveShootSum / stat.total).toFixed(1) : "0";
         const avgTotalShoot = stat.total > 0 ? (stat.shootTotalSum / stat.total).toFixed(1) : "0";
@@ -373,28 +140,18 @@
 
         if (hasWookCalc) {
           let wookWins, wookDraws, wookLosses, opponentLabel;
-
           if (isSelectedWook) {
-            wookWins = stat.wins;
-            wookDraws = stat.draws;
-            wookLosses = stat.losses;
-            opponentLabel = opName;
+            wookWins = stat.wins; wookDraws = stat.draws; wookLosses = stat.losses; opponentLabel = opName;
           } else {
-            wookWins = stat.losses;
-            wookDraws = stat.draws;
-            wookLosses = stat.wins;
-            opponentLabel = selectedNickname;
+            wookWins = stat.losses; wookDraws = stat.draws; wookLosses = stat.wins; opponentLabel = selectedNickname;
           }
 
           const swScore = (wookWins * 5) + (wookDraws * 3) + (wookLosses * 1);
           const opScore = (wookLosses * 3) + (wookDraws * 1) + (wookWins * 0);
 
           let winnerText = "🤝 무승부";
-          if (swScore > opScore) {
-            winnerText = isSelectedWook ? "🥇 승욱 승리!" : `🥇 승욱(${opName}) 승리!`;
-          } else if (swScore < opScore) {
-            winnerText = `🏅 ${opponentLabel} 승리!`;
-          }
+          if (swScore > opScore) winnerText = isSelectedWook ? "🥇 승욱 승리!" : `🥇 승욱(${opName}) 승리!`;
+          else if (swScore < opScore) winnerText = `🏅 ${opponentLabel} 승리!`;
 
           wookHtml = `
             <div class="wook-score-box">
@@ -408,16 +165,9 @@
         if (hasWookCalc) row.className = "wook-row";
 
         row.innerHTML = `
-          <td class="opponent-cell">
-            ${opName}
-            ${hasWookCalc ? '<span class="wook-badge">욱식</span>' : ''}
-          </td>
+          <td class="opponent-cell">${opName}${hasWookCalc ? '<span class="wook-badge">욱식</span>' : ''}</td>
           <td><strong>${stat.total}</strong></td>
-          <td>
-            <span class="win-text">${stat.wins}승</span> 
-            <span class="draw-text">${stat.draws}무</span> 
-            <span class="lose-text">${stat.losses}패</span>
-          </td>
+          <td><span class="win-text">${stat.wins}승</span> <span class="draw-text">${stat.draws}무</span> <span class="lose-text">${stat.losses}패</span></td>
           <td>${winRate}%</td>
           <td>${stat.goalsFor}/${stat.goalsAgainst}</td>
           <td>${avgPossession}%</td>
@@ -431,7 +181,7 @@
       document.getElementById("tableContainer").style.display = "block";
     }
 
-    window.onload = initButtons;
+    window.onload = loadCacheData;
   </script>
 </body>
 </html>
