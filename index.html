@@ -152,11 +152,18 @@
   </div>
 
   <script>
-    // 1. Supabase 클라이언트 설정 (본인의 Supabase URL과 Publishable/Anon Key로 변경하세요)
+    // ⚠️ 아래 두 항목을 본인의 Supabase Project Settings -> API 값으로 반드시 채워주세요!
+    // 예: "https://abcdefghijklmnopqrst.supabase.co"
     const SUPABASE_URL = "YOUR_SUPABASE_URL"; 
+    // 예: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY"; 
     
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let db = null;
+    try {
+      db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (e) {
+      console.error("Supabase 클라이언트 생성 실패:", e);
+    }
 
     // 수집 및 조회 대상 닉네임 목록
     const NICKNAMES = [
@@ -188,11 +195,17 @@
     }
 
     async function handleNicknameClick(selectedNickname, btnElement) {
+      const statusEl = document.getElementById("status");
+
+      if (!db || SUPABASE_URL === "YOUR_SUPABASE_URL") {
+        statusEl.innerText = "❌ SUPABASE_URL 및 SUPABASE_ANON_KEY 설정이 필요합니다. HTML 코드 상단을 확인해주세요.";
+        return;
+      }
+
       const allButtons = document.querySelectorAll(".btn-nickname");
       allButtons.forEach(b => b.classList.remove("active"));
       btnElement.classList.add("active");
 
-      const statusEl = document.getElementById("status");
       const tableContainer = document.getElementById("tableContainer");
       const tableBody = document.getElementById("resultTableBody");
 
@@ -217,7 +230,7 @@
           .maybeSingle();
 
         if (userErr || !user || !user.ouid) {
-          statusEl.innerText = `'${selectedNickname}' 님의 DB 회원 정보를 찾을 수 없습니다. (데이터 수집 전이거나 미등록)`;
+          statusEl.innerText = `'${selectedNickname}' 님의 DB 회원 정보를 찾을 수 없습니다. (수집 전이거나 미등록 상태)`;
           return;
         }
 
