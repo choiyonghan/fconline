@@ -1,0 +1,27 @@
+name: Update FC Online Data Cache
+
+on:
+  schedule:
+    - cron: '0 * * * *' # 1시간마다 자동 실행
+  workflow_dispatch: # GitHub 웹에서 버튼을 눌러 수동 실행도 가능
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Fetch Nexon API & Generate Cache
+        run: node build-data.js
+
+      - name: Commit and Push Data
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto update match cache data" && git push)
