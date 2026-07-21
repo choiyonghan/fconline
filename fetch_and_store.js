@@ -1,96 +1,198 @@
 import { createClient } from '@supabase/supabase-js';
-import ws from 'ws'; // 👈 ws 모듈 가져오기
+import ws from 'ws';
 
-// 1. 환경 변수 확인
-const NEXON_API_KEY = process.env.NEXON_API_KEY;
+// 1. 수집 대상 닉네임 목록 (DB에 없으면 자동으로 추가됨)
+const TARGET_NICKNAMES = [
+  'D로쏘네리',
+  '내혀를가져가는',
+  '내눈을가져가',
+  '지린성에사는욱구',
+  '욱냥0I',
+  '서울쥐',
+  '아기블루스',
+  'ST반니스텔로이',
+  '프란체스co토티'
+];
+
+// 2. 환경 변수 및 설정
+const NEXON_API_KEYS = [
+  process.env.NEXON_API_KEY,
+  process.env.NEXON_API_KEY_2,
+  process.env.NEXON_API_KEY_3
+].filter(Boolean);
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!NEXON_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+if (NEXON_API_KEYS.length === 0 || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("❌ 필수 환경변수가 설정되지 않았습니다.");
   process.exit(1);
 }
 
-// 2. Supabase 클라이언트 생성 (ws 연결 설정)
+let currentApiKeyIndex = 0;
+
+// 3. Supabase 클라이언트 생성
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: {
-    persistSession: false
-  },
-  global: {
-    headers: { 'x-application-name': 'fconline-pipeline' }
-  },
-  realtime: {
-    transport: ws // 👈 핵심: WebSocket 모듈 지정
-  }
+  auth: { persistSession: false },
+  realtime: { transport: ws }
 });
 
-// API 호출 공통 헤더
-const nexonHeaders = {
-  "x-nxopen-api-key": NEXON_API_KEY
-};
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// 수집 대상 유저 닉네임 목록 (필요에 따라 자유롭게 변경 가능)
-const TARGET_NICKNAMES = ["내혀를가져가"]; // 예시 닉네임
+// 4. API 키 로테이션 및 429 대응 Fetch 함수
+async function fetchNexonApi(url) {
+  while (currentApiKeyIndex < NEXON_API_KEYS.length) {
+    const apiKey = NEXON_API_KEYS[currentApiKeyIndex];
+    
+    try {
+      const response = await fetch(url, {
+        headers: { "x-nxopen-api-key": apiKey }
+      });
+
+      if (response.status === 429) {
+        console.warn(`⚠️ [429 제한 발생] ${currentApiKeyIndex + 1}번 API 키 제한 초과. 다음 키로 교체합니다.`);
+        currentApiKeyIndex++;
+
+        if (currentApiKeyIndex < NEXON_API_KEYS.length) {
+          await sleep(200);
+          continue;
+        } else {
+          throw new Error("❌ 모든 API 키가 요청 제한(429)에 도달했습니다.");
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(`API 오류 (Status: ${response.status})`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      if (err.message.includes("429")) throw err;
+      console.error(`  └ API 호출 중 오류 발생: ${err.message}`);
+      return null;
+    }
+  }
+
+  throw new Error("사용 가능한 API 키가 없습니다.");
+}
 
 async function main() {
-  console.log("🚀 데이터 수집 파이프라인 시작...");
+  console.log("🚀 FC 온라인 데이터 수집 파이프라인 시작...");
 
+  // -------------------------------------------------------------
+  // 수집 대상 닉네임 자동 추가 (DB에 없으면 자동 Insert)
+  // -------------------------------------------------------------
+  console.log("\n📋 수집 대상 닉네임 DB 검증 및 자동 등록 중...");
   for (const nickname of TARGET_NICKNAMES) {
-    try {
-      console.log(`\n🔍 [${nickname}] 데이터 수집 시작`);
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('nickname')
+      .eq('nickname', nickname)
+      .maybeSingle();
 
-      // A. OUID 조회
-      const ouidRes = await fetch(`https://open.api.nexon.com/fconline/v1/id?nickname=${encodeURIComponent(nickname)}`, { headers: nexonHeaders });
-      if (!ouidRes.ok) {
-        console.error(`❌ OUID 조회 실패 (${nickname}):`, await ouidRes.text());
+    if (!existingUser) {
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({ nickname: nickname });
+
+      if (insertError) {
+        console.error(`  └ ❌ [${nickname}] DB 추가 실패:`, insertError.message);
+      } else {
+        console.log(`  └ ➕ [${nickname}] 신규 유저로 DB에 자동 추가되었습니다.`);
+      }
+    } else {
+      console.log(`  └ 🆗 [${nickname}] 이미 DB에 존재하는 유저입니다.`);
+    }
+  }
+
+  // -------------------------------------------------------------
+  // 수집할 전체 유저 목록 가져오기
+  // -------------------------------------------------------------
+  const { data: users, error: userError } = await supabase.from('users').select('*');
+
+  if (userError || !users || users.length === 0) {
+    console.error("❌ 수집할 유저가 users 테이블에 존재하지 않습니다.");
+    return;
+  }
+
+  console.log(`\n📌 총 ${users.length}명의 유저 데이터 수집/갱신을 진행합니다.`);
+
+  const DELAY_MS = 100;
+
+  for (const user of users) {
+    let currentOuid = user.ouid;
+    let currentNickname = user.nickname;
+
+    try {
+      console.log(`\n🔍 [${currentNickname}] 데이터 수집 시작`);
+
+      // 1. OUID가 없는 경우 넥슨 API로 가져온 뒤 DB 저장
+      if (!currentOuid) {
+        console.log(`  └ OUID 조회 중...`);
+        const userData = await fetchNexonApi(`https://open.api.nexon.com/fconline/v1/id?nickname=${encodeURIComponent(currentNickname)}`);
+        
+        if (!userData || !userData.ouid) {
+          console.error(`  └ ❌ OUID를 가져오지 못했습니다 (${currentNickname})`);
+          continue;
+        }
+
+        currentOuid = userData.ouid;
+        await supabase.from('users').update({ 
+          ouid: currentOuid, 
+          updated_at: new Date().toISOString() 
+        }).eq('nickname', currentNickname);
+
+        console.log(`  └ ✅ OUID 발급 완료: ${currentOuid}`);
+        await sleep(DELAY_MS);
+      }
+
+      // 2. 최근 매치 목록 조회 (매치타입 40, 최근 100경기)
+      const matchType = 40;
+      console.log(`  └ 최근 100경기 목록(매치타입 ${matchType}) 요청 중...`);
+      const matchIds = await fetchNexonApi(`https://open.api.nexon.com/fconline/v1/user/match?ouid=${currentOuid}&matchtype=${matchType}&offset=0&limit=100`);
+
+      if (!matchIds || matchIds.length === 0) {
+        console.log(`  └ ⚠️ 수집된 매치 기록이 없습니다.`);
         continue;
       }
-      const { ouid } = await ouidRes.json();
 
-      // 유저 정보 users 테이블에 저장 (UPSERT)
-      await supabase.from('users').upsert({ ouid, nickname, updated_at: new Date().toISOString() });
+      console.log(`  └ 총 ${matchIds.length}개의 매치 ID 수집 완료. 상세 검사 및 저장 시작...`);
 
-      // B. 최근 매치 목록 조회 (공식경기 limit 10개)
-      const matchType = 50; // 50: 공식경기 (필요시 조정)
-      const matchesRes = await fetch(`https://open.api.nexon.com/fconline/v1/user/match?ouid=${ouid}&matchtype=${matchType}&offset=0&limit=10`, { headers: nexonHeaders });
-      if (!matchesRes.ok) continue;
-      
-      const matchIds = await matchesRes.json();
-      console.log(`📌 최근 매치 ${matchIds.length}개 발견`);
+      let savedCount = 0;
+      let skippedCount = 0;
 
-      // C. 매치 상세정보 조회 및 저장
-      for (const matchId of matchIds) {
-        // 1. 이미 DB에 존재하는 매치인지 먼저 확인 (SELECT)
+      // 3. 매치 상세 조회 및 저장
+      for (let i = 0; i < matchIds.length; i++) {
+        const matchId = matchIds[i];
+
+        // DB 존재 여부 미리 체크 (존재 시 넥슨 API 호출 스킵)
         const { data: existingMatch } = await supabase
           .from('matches')
           .select('match_id')
           .eq('match_id', matchId)
-          .maybeSingle(); // single() 대신 maybeSingle()을 쓰면 결과가 없을 때 에러가 나지 않고 null을 반환합니다.
+          .maybeSingle();
 
-        // 2. 이미 DB에 존재하면 넥슨 API를 부르지 않고 스킵! (API 트래픽 절약)
         if (existingMatch) {
-          console.log(`  └ ⏭️ 이미 존재하는 매치입니다. 스킵: ${matchId}`);
-          continue;
+          skippedCount++;
+          continue; // API 호출 안 하고 스킵
         }
 
-        // 3. DB에 없는 새로운 매치인 경우에만 넥슨 API 호출
-        const detailRes = await fetch(`https://open.api.nexon.com/fconline/v1/match-detail?matchid=${matchId}`, { headers: nexonHeaders });
-        if (!detailRes.ok) {
-          console.error(`  └ ❌ 매치 상세정보 API 호출 실패 (${matchId})`);
-          continue;
-        }
-        const matchData = await detailRes.json();
+        // 새 매치만 상세 정보 API 호출
+        const matchData = await fetchNexonApi(`https://open.api.nexon.com/fconline/v1/match-detail?matchid=${matchId}`);
+        await sleep(DELAY_MS);
 
-        // 4) matches 테이블 저장
+        if (!matchData || !matchData.matchInfo) continue;
+
+        // matches 테이블 저장
         await supabase.from('matches').insert({
           match_id: matchData.matchId,
           match_date: matchData.matchDate,
           match_type: matchType
         });
 
-        // 5) match_details 테이블 저장 (내 정보 & 상대방 정보 각각 가공)
-        const myInfo = matchData.matchInfo.find(m => m.ouid === ouid);
-        const opponentInfo = matchData.matchInfo.find(m => m.ouid !== ouid) || {};
+        // 내 정보 & 상대방 정보 분류
+        const myInfo = matchData.matchInfo.find(m => m.ouid === currentOuid);
+        const opponentInfo = matchData.matchInfo.find(m => m.ouid !== currentOuid) || {};
 
         if (!myInfo) continue;
 
@@ -98,16 +200,14 @@ async function main() {
           match_id: matchData.matchId,
           ouid: myInfo.ouid,
           opponent_ouid: opponentInfo.ouid || 'UNKNOWN',
-          opponent_nick: opponentInfo.nickname || '익명',
+          opponent_nick: opponentInfo.nickname || '상대 미상',
 
-          // 경기 결과 및 조작기
           match_result: myInfo.matchDetail?.matchResult || '무',
           controller: myInfo.matchDetail?.controller || 'unknown',
           average_rating: myInfo.matchDetail?.averageRating || 0,
 
-          // 슈팅 & 득점
-          goals_for: myInfo.shoot?.goalTotalDisplay ?? 0,
-          goals_against: opponentInfo.shoot?.goalTotalDisplay ?? 0,
+          goals_for: myInfo.shoot?.goalTotalDisplay ?? myInfo.shoot?.goalTotal ?? 0,
+          goals_against: opponentInfo.shoot?.goalTotalDisplay ?? opponentInfo.shoot?.goalTotal ?? 0,
           shoot_total: myInfo.shoot?.shootTotal ?? 0,
           effective_shoot: myInfo.shoot?.effectiveShootTotal ?? 0,
           goal_in_penalty: myInfo.shoot?.goalInPenalty ?? 0,
@@ -115,7 +215,6 @@ async function main() {
           shoot_heading: myInfo.shoot?.shootHeading ?? 0,
           own_goal: myInfo.shoot?.ownGoal ?? 0,
 
-          // 점유 & 패스
           possession: myInfo.matchDetail?.possession ?? 0,
           pass_try: myInfo.pass?.passTry ?? 0,
           pass_success: myInfo.pass?.passSuccess ?? 0,
@@ -123,33 +222,35 @@ async function main() {
           through_pass_try: myInfo.pass?.throughPassTry ?? 0,
           through_pass_success: myInfo.pass?.throughPassSuccess ?? 0,
 
-          // 수비
           tackle_try: myInfo.defence?.tackleTry ?? 0,
           tackle_success: myInfo.defence?.tackleSuccess ?? 0,
           foul: myInfo.matchDetail?.foul ?? 0,
           yellow_cards: myInfo.matchDetail?.yellowCards ?? 0,
           red_cards: myInfo.matchDetail?.redCards ?? 0,
 
-          // 상세 JSONB
           shoot_detail: myInfo.shootDetail || [],
           player_squad: myInfo.player || []
         };
 
-        const { error } = await supabase.from('match_details').upsert(detailPayload, { onConflict: 'match_id,ouid' });
-        
-        if (error) {
-          console.error(`  └ ❌ 상세 정보 저장 실패 (${matchId}):`, error.message);
+        const { error: detailError } = await supabase
+          .from('match_details')
+          .upsert(detailPayload, { onConflict: 'match_id,ouid' });
+
+        if (detailError) {
+          console.error(`  └ ❌ 저장 실패 (${matchId}): ${detailError.message}`);
         } else {
-          console.log(`  └ ✅ 새 매치 수집 완료: ${matchId}`);
+          savedCount++;
         }
       }
 
+      console.log(`  └ 🎉 [${currentNickname}] 처리 완료 (신규 저장: ${savedCount}건, 기존 스킵: ${skippedCount}건)`);
+
     } catch (err) {
-      console.error(`❌ [${nickname}] 처리 중 오류 발생:`, err);
+      console.error(`❌ [${currentNickname}] 스크립트 실행 중 에러:`, err.message);
     }
   }
 
-  console.log("\n🎉 모든 데이터 수집 파이프라인이 완료되었습니다!");
+  console.log("\n✅ 모든 유저의 전적 데이터 수집 파이프라인이 성공적으로 끝났습니다!");
 }
 
 main();
