@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import ws from 'ws'; // 👈 1. ws 모듈 추가
 
 // 1. 환경 변수 확인
 const NEXON_API_KEY = process.env.NEXON_API_KEY;
@@ -6,12 +7,16 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!NEXON_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("❌ 환경변수가 올바르게 설정되지 않았습니다.");
+  console.error("❌ 필수 환경변수가 설정되지 않았습니다.");
   process.exit(1);
 }
 
-// 2. Supabase 클라이언트 생성 (Secret Key 사용으로 RLS 우회 권한 획득)
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+// 2. Supabase 클라이언트 생성 (ws 옵션 및 persistSession: false 전달)
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: {
+    persistSession: false // 👈 백엔드/스케줄러 환경에서는 세션 저장이 필요 없음
+  }
+});
 
 // API 호출 공통 헤더
 const nexonHeaders = {
