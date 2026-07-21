@@ -4,11 +4,37 @@ const SUPABASE_ANON_KEY = "sb_publishable_aXnxmQfcuNVBYdbjyHf8xQ_RsJTeBIL";
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const WOOK_NICKNAMES = ["지린성에사는욱구", "욱냥0I"];
 const dbCache = {};
+let spidMetaMap = {}; // SPID -> 선수이름 매핑 맵
 
-// 1. users 테이블 로드
+// 1. 넥슨 Open API spid.json 메타데이터 로드
+async function loadSpidMeta() {
+  try {
+    const res = await fetch("https://open.api.nexon.com/static/fconline/meta/spid.json");
+    if (!res.ok) throw new Error("spid.json 로드 실패");
+    const data = await res.json();
+
+    // Key: id, Value: name 형태로 빠르게 찾을 수 있게 변환
+    data.forEach(item => {
+      spidMetaMap[item.id] = item.name;
+    });
+    console.log(`선수 메타데이터 ${data.length}개 로드 완료!`);
+  } catch (err) {
+    console.error("SPID 메타데이터 가져오기 실패:", err);
+  }
+}
+
+// 선수 ID를 이름으로 바꿔주는 헬퍼 함수
+function getPlayerName(spId) {
+  return spidMetaMap[spId] || `선수(ID:${spId})`;
+}
+
+// 2. users 테이블 로드 및 초기화
 async function fetchUsersAndInitButtons() {
   const statusEl = document.getElementById("status");
   const container = document.getElementById("nicknameButtons");
+
+  // 메타데이터 로드 동시 진행
+  await loadSpidMeta();
 
   try {
     const { data: users, error } = await db
@@ -38,7 +64,7 @@ async function fetchUsersAndInitButtons() {
   }
 }
 
-// 2. 닉네임 클릭 및 데이터 조회
+// 3. 닉네임 클릭 및 데이터 조회
 async function handleNicknameClick(userObj, btnElement) {
   const statusEl = document.getElementById("status");
   const selectedNickname = userObj.nickname;
@@ -101,7 +127,7 @@ async function handleNicknameClick(userObj, btnElement) {
   }
 }
 
-// 3. 메인 테이블 생성
+// 4. 메인 테이블 생성
 function renderGroupedTable(selectedNickname, opponentGroup) {
   const tableBody = document.getElementById("resultTableBody");
   tableBody.innerHTML = "";
@@ -168,76 +194,80 @@ function renderGroupedTable(selectedNickname, opponentGroup) {
   document.getElementById("tableContainer").style.display = "block";
 }
 
-// 4. 클릭 시 상세 분석 지표 렌더링
+// 5. 클릭 시 선수별 (Goal, Assist, Defending) 최다 기록 선수 및 평균 득/실 계산
 function renderDetailCard(userNick, opponentNick, matches) {
   const detailCard = document.getElementById("detailCard");
-  document.getElementById("detailTitle").innerText = `'${userNick}' vs '${opponentNick}' 맞대결 심층 지표 (${matches.length}경기)`;
+  const totalMatches = matches.length;
+  
+  document.getElementById("detailTitle").innerText = `'${userNick}' vs '${opponentNick}' 맞대결 분석 (${totalMatches}경기)`;
 
-  let playerMap = {};
-  let totalShootsCount = 0;
-  let inBoxShootsCount = 0;
-  let throughPassTrySum = 0;
-  let throughPassSuccessSum = 0;
-  let tackleTrySum = 0;
-  let tackleSuccessSum = 0;
-  let foulSum = 0;
+  let totalGoalsFor = 0;
+  let totalGoalsAgainst = 0;
+  
+  // 선수별 스탯 누적 (spId 기준)
+  const playerStats = {};
 
   matches.forEach(m => {
+    totalGoalsFor += (m.goals_for || 0);
+    totalGoalsAgainst += (m.goals_against || 0);
+
     const squad = m.player_squid || [];
     squad.forEach(p => {
-      if (p.status && p.status.spRating > 0) {
-        if (!playerMap[p.spId]) {
-          playerMap[p.spId] = { spId: p.spId, ratingSum: 0, goals: 0, assists: 0, count: 0 };
-        }
-        playerMap[p.spId].ratingSum += p.status.spRating;
-        playerMap[p.spId].goals += (p.status.goal || 0);
-        playerMap[p.spId].assists += (p.status.assist || 0);
-        playerMap[p.spId].count += 1;
+      if (!p.spId || p.spId === 0) return;
+
+      if (!playerStats[p.spId]) {
+        playerStats[p.spId] = { spId: p.spId, goal: 0, assist: 0, defending: 0 };
       }
-    });
 
-    const shoots = m.shoot_detail || [];
-    shoots.forEach(s => {
-      totalShootsCount += 1;
-      if (s.inPenalty) inBoxShootsCount += 1;
+      const st = p.status || {};
+      playerStats[p.spId].goal += (st.goal || 0);
+      playerStats[p.spId].assist += (st.assist || 0);
+      playerStats[p.spId].defending += (st.defending || 0);
     });
-
-    throughPassTrySum += (m.through_pass_try || 0);
-    throughPassSuccessSum += (m.through_pass_success || 0);
-    tackleTrySum += (m.tackle_try || 0);
-    tackleSuccessSum += (m.tackle_success || 0);
-    foulSum += (m.foul || 0);
   });
 
-  const playerList = Object.values(playerMap);
-  if (playerList.length > 0) {
-    playerList.sort((a, b) => (b.ratingSum / b.count) - (a.ratingSum / a.count));
-    const topPlayer = playerList[0];
-    const avgRating = (topPlayer.ratingSum / topPlayer.count).toFixed(2);
+  // 1) 평균 득/실 계산
+  const avgGoalsFor = (totalGoalsFor / totalMatches).toFixed(2);
+  const avgGoalsAgainst = (totalGoalsAgainst / totalMatches).toFixed(2);
+
+  document.getElementById("avgGoals").innerText = `⚽ ${avgGoalsFor}골 / 🛡️ ${avgGoalsAgainst}실점`;
+  document.getElementById("totalGoalsSub").innerText = `총 ${totalGoalsFor}득점 / 총 ${totalGoalsAgainst}실점`;
+
+  // 2) player_squid 기반 Top 선수 추출
+  const players = Object.values(playerStats);
+
+  if (players.length > 0) {
+    // 최다 득점자
+    players.sort((a, b) => b.goal - a.goal);
+    const topScorer = players[0];
+    const topScorerName = getPlayerName(topScorer.spId);
+    const avgScorerGoals = (topScorer.goal / totalMatches).toFixed(2);
     
-    document.getElementById("momName").innerText = `선수 ID: ${topPlayer.spId}`;
-    document.getElementById("momDetail").innerText = `평점: ${avgRating}점 | ${topPlayer.goals}골 ${topPlayer.assists}어시`;
+    document.getElementById("topScorerName").innerText = topScorer.goal > 0 ? topScorerName : "득점 없음";
+    document.getElementById("topScorerDetail").innerText = topScorer.goal > 0 ? `총 ${topScorer.goal}골 (경기당 ${avgScorerGoals}골)` : "-";
+
+    // 최다 어시스트
+    players.sort((a, b) => b.assist - a.assist);
+    const topAssister = players[0];
+    const topAssisterName = getPlayerName(topAssister.spId);
+    const avgAssisterAssists = (topAssister.assist / totalMatches).toFixed(2);
+
+    document.getElementById("topAssisterName").innerText = topAssister.assist > 0 ? topAssisterName : "어시스트 없음";
+    document.getElementById("topAssisterDetail").innerText = topAssister.assist > 0 ? `총 ${topAssister.assist}어시스트 (경기당 ${avgAssisterAssists}개)` : "-";
+
+    // 최다 수비 성공자
+    players.sort((a, b) => b.defending - a.defending);
+    const topDefender = players[0];
+    const topDefenderName = getPlayerName(topDefender.spId);
+
+    document.getElementById("topDefenderName").innerText = topDefender.defending > 0 ? topDefenderName : "수비 기록 없음";
+    document.getElementById("topDefenderDetail").innerText = topDefender.defending > 0 ? `총 ${topDefender.defending}회 수비 성공` : "-";
+
   } else {
-    document.getElementById("momName").innerText = "선수 데이터 없음";
-    document.getElementById("momDetail").innerText = "-";
+    document.getElementById("topScorerName").innerText = "-";
+    document.getElementById("topAssisterName").innerText = "-";
+    document.getElementById("topDefenderName").innerText = "-";
   }
-
-  const boxRate = totalShootsCount > 0 ? ((inBoxShootsCount / totalShootsCount) * 100).toFixed(1) : "0.0";
-  document.getElementById("boxShootRate").innerText = `${boxRate}%`;
-  document.getElementById("shootSub").innerText = `총 ${totalShootsCount}회 중 박스 안 ${inBoxShootsCount}회`;
-
-  const throughRate = throughPassTrySum > 0 ? ((throughPassSuccessSum / throughPassTrySum) * 100).toFixed(1) : "0.0";
-  let styleText = "단거리 점유율 중심";
-  if (throughPassTrySum / matches.length > 10) styleText = "침투 스루패스 위주";
-  
-  document.getElementById("passStyle").innerText = styleText;
-  document.getElementById("throughPassRate").innerText = `스루패스 성공률: ${throughRate}% (${throughPassSuccessSum}/${throughPassTrySum})`;
-
-  const tackleRate = tackleTrySum > 0 ? ((tackleSuccessSum / tackleTrySum) * 100).toFixed(1) : "0.0";
-  const avgFoul = (foulSum / matches.length).toFixed(1);
-  
-  document.getElementById("tackleRate").innerText = `${tackleRate}%`;
-  document.getElementById("foulDetail").innerText = `태클 성공 ${tackleSuccessSum}/${tackleTrySum}회 | 경기당 파울 ${avgFoul}회`;
 
   detailCard.style.display = "block";
   detailCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
