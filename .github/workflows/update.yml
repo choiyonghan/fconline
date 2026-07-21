@@ -1,31 +1,29 @@
-name: Update FC Online Data Cache
+name: FC Online Data Pipeline
 
 on:
   schedule:
-    - cron: '0 0 * * *' # 매일 한국시간 오전 9시(UTC 00:00) 자동 실행
-  workflow_dispatch: # 수동 실행 버튼
-
-# [추가된 부분] 저장소 쓰기 권한 부여
-permissions:
-  contents: write
+    - cron: '0 * * * *' # 매 1시간마다 자동 실행
+  workflow_dispatch:     # 수동 실행 버튼 제공
 
 jobs:
-  build:
+  run-pipeline:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
-      - name: Fetch Nexon API & Generate Cache
-        run: node build-data.js
+      - name: 패키지 설치
+        run: npm install @supabase/supabase-js
 
-      - name: Commit and Push Data
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto update match cache data" && git push)
+      - name: 파이프라인 실행
+        env:
+          NEXON_API_KEY: ${{ secrets.NEXON_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node fetch_and_store.js
