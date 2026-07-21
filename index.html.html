@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>욱식 계산기</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#111;color:#fff;display:flex;justify-content:center;padding:30px}
+.card{background:#1c1c1c;border:2px solid #d4af37;border-radius:16px;padding:24px;max-width:430px;width:100%;box-shadow:0 0 20px rgba(212,175,55,.2)}
+h1{text-align:center;color:#d4af37}
+label{display:block;margin-top:14px}
+select,input{width:100%;padding:10px;border-radius:8px;border:1px solid #555;background:#2b2b2b;color:#fff;box-sizing:border-box}
+button{width:100%;margin-top:18px;padding:12px;border:none;border-radius:8px;background:#d4af37;color:#111;font-weight:bold;cursor:pointer}
+#result{margin-top:20px;background:#262626;padding:15px;border-radius:10px;line-height:1.7}
+small{color:#bbb}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>🏆 욱식 계산기</h1>
+
+<label>상대</label>
+<select id="op">
+<option>상기</option>
+<option>용한</option>
+<option>동민</option>
+<option>정현</option>
+</select>
+
+<label>승욱 승</label>
+<input id="w" type="number" min="0" value="0">
+
+<label>승욱 무</label>
+<input id="d" type="number" min="0" value="0">
+
+<label>승욱 패</label>
+<input id="l" type="number" min="0" value="0">
+
+<button onclick="calc()">계산하기</button>
+
+<div id="result">
+<small>결과가 여기에 표시됩니다.</small>
+</div>
+</div>
+
+<script>
+function calc(){
+const op=document.getElementById('op').value;
+const w=+document.getElementById('w').value;
+const d=+document.getElementById('d').value;
+const l=+document.getElementById('l').value;
+
+const sw = w*5 + d*3 + l;
+const opScore = l*3 + d;
+
+let winner="🤝 무승부";
+if(sw>opScore) winner="🥇 승욱 승리!";
+else if(sw<opScore) winner="🏅 "+op+" 승리!";
+
+document.getElementById("result").innerHTML=`
+<h2>결과</h2>
+<b>승욱</b><br>
+${w}승 ${d}무 ${l}패<br>
+점수 : <b>${sw}</b><br><br>
+
+<b>${op}</b><br>
+${l}승 ${d}무 ${w}패<br>
+점수 : <b>${opScore}</b><br><br>
+
+<b>${winner}</b>
+<hr>
+승욱 계산 : (${w}×5)+(${d}×3)+(${l}×1) = ${sw}<br>
+${op} 계산 : (${l}×3)+(${d}×1)+(${w}×0) = ${opScore}
+`;
+}
+</script>
+</body>
+</html>
