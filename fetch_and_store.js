@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import ws from 'ws'; // 👈 1. ws 모듈 추가
+import ws from 'ws'; // 👈 ws 모듈 가져오기
 
 // 1. 환경 변수 확인
 const NEXON_API_KEY = process.env.NEXON_API_KEY;
@@ -11,10 +11,16 @@ if (!NEXON_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-// 2. Supabase 클라이언트 생성 (ws 옵션 및 persistSession: false 전달)
+// 2. Supabase 클라이언트 생성 (ws 연결 설정)
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: {
-    persistSession: false // 👈 백엔드/스케줄러 환경에서는 세션 저장이 필요 없음
+    persistSession: false
+  },
+  global: {
+    headers: { 'x-application-name': 'fconline-pipeline' }
+  },
+  realtime: {
+    transport: ws // 👈 핵심: WebSocket 모듈 지정
   }
 });
 
