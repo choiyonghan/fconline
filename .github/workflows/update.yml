@@ -2,8 +2,12 @@ name: Update FC Online Data Cache
 
 on:
   schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch: # GitHub 웹에서 버튼을 눌러 수동 실행도 가능
+    - cron: '0 0 * * *' # 매일 한국시간 오전 9시(UTC 00:00) 자동 실행
+  workflow_dispatch: # 수동 실행 버튼
+
+# [추가된 부분] 저장소 쓰기 권한 부여
+permissions:
+  contents: write
 
 jobs:
   build:
