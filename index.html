@@ -152,10 +152,8 @@
   </div>
 
   <script>
-    // ⚠️ 아래 두 항목을 본인의 Supabase Project Settings -> API 값으로 반드시 채워주세요!
-    // 예: "https://abcdefghijklmnopqrst.supabase.co"
-    const SUPABASE_URL = "https://abcdefghijklmnopqrst.supabase.co";
-    // 예: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    // 본인의 Supabase Project URL 및 Key 설정 완료
+    const SUPABASE_URL = "https://jwqhpdtizrpyohlrqfgu.supabase.co"; 
     const SUPABASE_ANON_KEY = "sb_publishable_aXnxmQfcuNVBYdbjyHf8xQ_RsJTeBIL"; 
     
     let db = null;
@@ -168,7 +166,7 @@
     // 수집 및 조회 대상 닉네임 목록
     const NICKNAMES = [
       "D로쏘네리",
-      "내혀를가져가",
+      "내혀를가져가는",
       "내눈을가져가",
       "지린성에사는욱구",
       "욱냥0I",
@@ -197,8 +195,8 @@
     async function handleNicknameClick(selectedNickname, btnElement) {
       const statusEl = document.getElementById("status");
 
-      if (!db || SUPABASE_URL === "YOUR_SUPABASE_URL") {
-        statusEl.innerText = "❌ SUPABASE_URL 및 SUPABASE_ANON_KEY 설정이 필요합니다. HTML 코드 상단을 확인해주세요.";
+      if (!db) {
+        statusEl.innerText = "❌ SUPABASE 클라이언트 연결에 실패했습니다.";
         return;
       }
 
