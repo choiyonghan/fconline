@@ -2,7 +2,7 @@ name: Update FC Online Data Cache
 
 on:
   schedule:
-    - cron: '0 * * * *' # 1시간마다 자동 실행
+    - cron: '0 0 * * *'
   workflow_dispatch: # GitHub 웹에서 버튼을 눌러 수동 실행도 가능
 
 jobs:
