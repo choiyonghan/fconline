@@ -137,8 +137,7 @@
           .from('match_details')
           .select('*')
           .eq('ouid', userOuid)
-          .order('id', { ascending: false })
-          .limit(100);
+          .order('id', { ascending: false });
 
         console.log(`${selectedNickname} 매치 데이터:`, matchDetails);
 
