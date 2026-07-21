@@ -105,3 +105,8 @@ tr.wook-row { background-color: #fffbeb; }
 .goal-badge { background: #dcfce7; color: #166534; }
 .assist-badge { background: #e0f2fe; color: #075985; }
 .defense-badge { background: #f3e8ff; color: #6b21a8; }
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.stat-box { background: #f0f2f5; padding: 10px; border-radius: 8px; font-size: 11px; text-align: center; }
+.btn-nickname { font-size: 14px; padding: 12px; border-radius: 8px; border: 1px solid #ccc; background: white; }
+.btn-nickname.active { background: #007bff; color: white; border: none; }
+table { font-size: 12px; }
