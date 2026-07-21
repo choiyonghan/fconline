@@ -49,23 +49,35 @@ async function main() {
 
       // C. 매치 상세정보 조회 및 저장
       for (const matchId of matchIds) {
-        // 이미 저장된 매치인지 확인
-        const { data: existingMatch } = await supabase.from('matches').select('match_id').eq('match_id', matchId).single();
-        
-        const detailRes = await fetch(`https://open.api.nexon.com/fconline/v1/match-detail?matchid=${matchId}`, { headers: nexonHeaders });
-        if (!detailRes.ok) continue;
-        const matchData = await detailRes.json();
+        // 1. 이미 DB에 존재하는 매치인지 먼저 확인 (SELECT)
+        const { data: existingMatch } = await supabase
+          .from('matches')
+          .select('match_id')
+          .eq('match_id', matchId)
+          .maybeSingle(); // single() 대신 maybeSingle()을 쓰면 결과가 없을 때 에러가 나지 않고 null을 반환합니다.
 
-        // 1) matches 테이블 저장
-        if (!existingMatch) {
-          await supabase.from('matches').insert({
-            match_id: matchData.matchId,
-            match_date: matchData.matchDate,
-            match_type: matchType
-          });
+        // 2. 이미 DB에 존재하면 넥슨 API를 부르지 않고 스킵! (API 트래픽 절약)
+        if (existingMatch) {
+          console.log(`  └ ⏭️ 이미 존재하는 매치입니다. 스킵: ${matchId}`);
+          continue;
         }
 
-        // 2) match_details 테이블 저장 (내 정보 & 상대방 정보 각각 가공)
+        // 3. DB에 없는 새로운 매치인 경우에만 넥슨 API 호출
+        const detailRes = await fetch(`https://open.api.nexon.com/fconline/v1/match-detail?matchid=${matchId}`, { headers: nexonHeaders });
+        if (!detailRes.ok) {
+          console.error(`  └ ❌ 매치 상세정보 API 호출 실패 (${matchId})`);
+          continue;
+        }
+        const matchData = await detailRes.json();
+
+        // 4) matches 테이블 저장
+        await supabase.from('matches').insert({
+          match_id: matchData.matchId,
+          match_date: matchData.matchDate,
+          match_type: matchType
+        });
+
+        // 5) match_details 테이블 저장 (내 정보 & 상대방 정보 각각 가공)
         const myInfo = matchData.matchInfo.find(m => m.ouid === ouid);
         const opponentInfo = matchData.matchInfo.find(m => m.ouid !== ouid) || {};
 
@@ -112,13 +124,12 @@ async function main() {
           player_squad: myInfo.player || []
         };
 
-        // match_details 테이블에 UPSERT (unique_match_user 충돌 시 업데이트)
         const { error } = await supabase.from('match_details').upsert(detailPayload, { onConflict: 'match_id,ouid' });
         
         if (error) {
-          console.error(`  └ ❌ 저장 실패 (${matchId}):`, error.message);
+          console.error(`  └ ❌ 상세 정보 저장 실패 (${matchId}):`, error.message);
         } else {
-          console.log(`  └ ✅ 매치 저장 완료: ${matchId}`);
+          console.log(`  └ ✅ 새 매치 수집 완료: ${matchId}`);
         }
       }
 
