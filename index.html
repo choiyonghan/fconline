@@ -4,39 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FC Online 상대 닉네임별 전적 분석</title>
+  
+  <!-- CSS 스타일 파일 연결 -->
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Supabase 라이브러리 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      max-width: 1050px;
-      margin: 40px auto;
-      padding: 0 20px;
-      background-color: #f8fafc;
-      color: #1e293b;
-    }
-    h1 { text-align: center; color: #0f172a; margin-bottom: 24px; }
-    .nickname-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 24px; }
-    .btn-nickname {
-      background-color: #2563eb; color: white; border: none; padding: 10px 18px;
-      border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
-    }
-    .btn-nickname:hover { background-color: #1d4ed8; }
-    .btn-nickname.active { background-color: #0f172a; }
-    .btn-nickname:disabled { background-color: #94a3b8; cursor: not-allowed; }
-    #status { text-align: center; font-weight: 600; margin: 20px 0; color: #64748b; }
-    .table-container { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); overflow-x: auto; display: none; }
-    table { width: 100%; border-collapse: collapse; text-align: center; white-space: nowrap; }
-    th, td { padding: 14px 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
-    th { background-color: #0f172a; color: white; }
-    tr.wook-row { background-color: #fffbeb; }
-    .wook-badge { background-color: #d4af37; color: #111; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
-    .opponent-cell { font-weight: bold; text-align: left; padding-left: 16px; }
-    .win-text { color: #16a34a; font-weight: bold; }
-    .lose-text { color: #dc2626; font-weight: bold; }
-    .draw-text { color: #64748b; font-weight: bold; }
-    .wook-score-box { font-size: 12px; text-align: left; }
-    .wook-winner { font-weight: bold; color: #b45309; }
-  </style>
 </head>
 <body>
 
@@ -45,18 +18,18 @@
   <div class="nickname-container" id="nicknameButtons"></div>
   <div id="status">DB에서 유저 목록을 불러오는 중입니다...</div>
 
+  <!-- 메인 테이블 -->
   <div class="table-container" id="tableContainer">
     <table>
       <thead>
         <tr>
-          <th style="text-align: left; padding-left: 16px;">상대 닉네임</th>
+          <th style="text-align: left; padding-left: 16px;">상대 닉네임 (클릭하여 상세분석)</th>
           <th>판수</th>
           <th>기본 전적 (승/무/패)</th>
           <th>승률</th>
           <th>득/실</th>
           <th>평균 점유율</th>
-          <th>유효/총 슈팅 (경기당)</th>
-          <th>평균 패스 성공률</th>
+          <th>유효/총 슈팅</th>
           <th>🏆 욱식 점수 및 승패</th>
         </tr>
       </thead>
@@ -64,188 +37,41 @@
     </table>
   </div>
 
-  <script>
-    const SUPABASE_URL = "https://jwqhpdtizrpyohlrqfgu.supabase.co"; 
-    const SUPABASE_ANON_KEY = "sb_publishable_aXnxmQfcuNVBYdbjyHf8xQ_RsJTeBIL"; 
-    
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const WOOK_NICKNAMES = ["지린성에사는욱구", "욱냥0I"];
-    const dbCache = {};
+  <!-- ROW 클릭 시 활성화되는 상세 리포트 카드 -->
+  <div class="detail-card" id="detailCard">
+    <div class="detail-header">
+      <div class="detail-title" id="detailTitle">상대 분석 상세 리포트</div>
+      <span class="click-hint">💡 행을 클릭하면 다른 상대 지표로 전환됩니다.</span>
+    </div>
 
-    // 1. 페이지 로드시 users 테이블에서 닉네임 목록을 동적으로 로드
-    async function fetchUsersAndInitButtons() {
-      const statusEl = document.getElementById("status");
-      const container = document.getElementById("nicknameButtons");
+    <div class="dashboard-grid">
+      <div class="metric-box">
+        <span class="mom-badge">⭐ 최고 활약 선수 (MOM)</span>
+        <div class="metric-value" id="momName">-</div>
+        <div class="metric-sub" id="momDetail">평점: - | 골/어시: -</div>
+      </div>
 
-      try {
-        const { data: users, error } = await db
-          .from('users')
-          .select('nickname, ouid')
-          .order('nickname', { ascending: true });
+      <div class="metric-box">
+        <div class="metric-title">🎯 슈팅 퀄리티 (Shoot Detail)</div>
+        <div class="metric-value" id="boxShootRate">- %</div>
+        <div class="metric-sub" id="shootSub">박스 안 슈팅 비중 / 유효율 -%</div>
+      </div>
 
-        console.log("users 테이블 조회 결과:", users);
+      <div class="metric-box">
+        <div class="metric-title">🎨 빌드업 & 패스 스타일</div>
+        <div class="metric-value" id="passStyle">-</div>
+        <div class="metric-sub" id="throughPassRate">스루패스 성공률: -%</div>
+      </div>
 
-        if (error) throw error;
+      <div class="metric-box">
+        <div class="metric-title">🛡️ 수비 지수 (Tackle & Clean)</div>
+        <div class="metric-value" id="tackleRate">- %</div>
+        <div class="metric-sub" id="foulDetail">태클 성공률 | 경기당 파울 -회</div>
+      </div>
+    </div>
+  </div>
 
-        if (!users || users.length === 0) {
-          statusEl.innerText = "❌ users 테이블에 등록된 닉네임이 없거나(빈 배열), RLS 설정으로 인해 읽기가 차단되었습니다.";
-          return;
-        }
-
-        container.innerHTML = "";
-        users.forEach(user => {
-          const btn = document.createElement("button");
-          btn.className = "btn-nickname";
-          btn.innerText = user.nickname;
-          btn.onclick = () => handleNicknameClick(user, btn);
-          container.appendChild(btn);
-        });
-
-        statusEl.innerText = `총 ${users.length}명의 유저를 불러왔습니다. 분석할 닉네임을 클릭하세요.`;
-
-      } catch (err) {
-        console.error("유저 로드 에러:", err);
-        statusEl.innerText = "❌ users 테이블을 불러오지 못했습니다. (콘솔 로그를 확인하세요)";
-      }
-    }
-
-    // 2. 닉네임 클릭시 match_details(또나 match) 조회
-    async function handleNicknameClick(userObj, btnElement) {
-      const statusEl = document.getElementById("status");
-      const selectedNickname = userObj.nickname;
-      const userOuid = userObj.ouid;
-
-      document.querySelectorAll(".btn-nickname").forEach(b => b.classList.remove("active"));
-      btnElement.classList.add("active");
-
-      const tableContainer = document.getElementById("tableContainer");
-      const tableBody = document.getElementById("resultTableBody");
-
-      if (dbCache[selectedNickname]) {
-        renderGroupedTable(selectedNickname, dbCache[selectedNickname].opponentGroup);
-        statusEl.innerText = `'${selectedNickname}' 님의 분석 결과입니다. (캐시)`;
-        return;
-      }
-
-      tableContainer.style.display = "none";
-      tableBody.innerHTML = "";
-      statusEl.innerText = `'${selectedNickname}' 님의 전적 데이터를 조회 중입니다...`;
-
-      try {
-        // match_details 테이블 조회 (필요 시 테이블명이나 컬럼명 확인)
-        const { data: matchDetails, error } = await db
-          .from('match_details')
-          .select('*')
-          .eq('ouid', userOuid)
-          .order('id', { ascending: false });
-
-        console.log(`${selectedNickname} 매치 데이터:`, matchDetails);
-
-        if (error) throw error;
-
-        if (!matchDetails || matchDetails.length === 0) {
-          statusEl.innerText = `'${selectedNickname}' 님의 매치 상세 데이터가 없습니다. ([] 빈 배열 반환됨)`;
-          return;
-        }
-
-        // 상대별 데이터 그룹화
-        const opponentGroup = {};
-        matchDetails.forEach(detail => {
-          const opponentNickname = detail.opponent_nick || "상대 미상";
-
-          if (!opponentGroup[opponentNickname]) {
-            opponentGroup[opponentNickname] = {
-              total: 0, wins: 0, draws: 0, losses: 0,
-              goalsFor: 0, goalsAgainst: 0, possessionSum: 0,
-              shootTotalSum: 0, effectiveShootSum: 0, passTrySum: 0, passSuccessSum: 0
-            };
-          }
-
-          const group = opponentGroup[opponentNickname];
-          group.total += 1;
-          if (detail.match_result === "승") group.wins += 1;
-          else if (detail.match_result === "무") group.draws += 1;
-          else if (detail.match_result === "패") group.losses += 1;
-
-          group.goalsFor += (detail.goals_for || 0);
-          group.goalsAgainst += (detail.goals_against || 0);
-          group.possessionSum += (detail.possession || 0);
-          group.shootTotalSum += (detail.shoot_total || 0);
-          group.effectiveShootSum += (detail.effective_shoot || 0);
-          group.passTrySum += (detail.pass_try || 0);
-          group.passSuccessSum += (detail.pass_success || 0);
-        });
-
-        dbCache[selectedNickname] = { opponentGroup };
-        renderGroupedTable(selectedNickname, opponentGroup);
-        statusEl.innerText = `'${selectedNickname}' 님의 최근 ${matchDetails.length}경기 분석 완료!`;
-
-      } catch (err) {
-        console.error("매치 데이터 로드 에러:", err);
-        statusEl.innerText = "데이터 조회 중 에러가 발생했습니다.";
-      }
-    }
-
-    function renderGroupedTable(selectedNickname, opponentGroup) {
-      const tableBody = document.getElementById("resultTableBody");
-      tableBody.innerHTML = "";
-
-      const isSelectedWook = WOOK_NICKNAMES.includes(selectedNickname);
-      const sortedOpponents = Object.keys(opponentGroup).sort((a, b) => opponentGroup[b].total - opponentGroup[a].total);
-
-      sortedOpponents.forEach(opName => {
-        const stat = opponentGroup[opName];
-        const winRate = stat.total > 0 ? ((stat.wins / stat.total) * 100).toFixed(1) : "0.0";
-        const avgPossession = stat.total > 0 ? (stat.possessionSum / stat.total).toFixed(1) : "0";
-        const avgEffectiveShoot = stat.total > 0 ? (stat.effectiveShootSum / stat.total).toFixed(1) : "0";
-        const avgTotalShoot = stat.total > 0 ? (stat.shootTotalSum / stat.total).toFixed(1) : "0";
-        const passSuccessRate = stat.passTrySum > 0 ? ((stat.passSuccessSum / stat.passTrySum) * 100).toFixed(1) : "0.0";
-
-        const isOpponentWook = WOOK_NICKNAMES.includes(opName);
-        const hasWookCalc = isSelectedWook || isOpponentWook;
-
-        let wookHtml = "<span style='color:#94a3b8;'>-</span>";
-        if (hasWookCalc) {
-          let wookWins = isSelectedWook ? stat.wins : stat.losses;
-          let wookDraws = stat.draws;
-          let wookLosses = isSelectedWook ? stat.losses : stat.wins;
-          let opponentLabel = isSelectedWook ? opName : selectedNickname;
-
-          const swScore = (wookWins * 5) + (wookDraws * 3) + (wookLosses * 1);
-          const opScore = (wookLosses * 3) + (wookDraws * 1) + (wookWins * 0);
-
-          let winnerText = "🤝 무승부";
-          if (swScore > opScore) winnerText = isSelectedWook ? "🥇 승욱 승리!" : `🥇 승욱(${opName}) 승리!`;
-          else if (swScore < opScore) winnerText = `🏅 ${opponentLabel} 승리!`;
-
-          wookHtml = `
-            <div class="wook-score-box">
-              <b>승욱</b>: ${swScore}점 | <b>${opponentLabel}</b>: ${opScore}점<br>
-              <span class="wook-winner">${winnerText}</span>
-            </div>
-          `;
-        }
-
-        const row = document.createElement("tr");
-        if (hasWookCalc) row.className = "wook-row";
-        row.innerHTML = `
-          <td class="opponent-cell">${opName}${hasWookCalc ? '<span class="wook-badge">욱식</span>' : ''}</td>
-          <td><strong>${stat.total}</strong></td>
-          <td><span class="win-text">${stat.wins}승</span> <span class="draw-text">${stat.draws}무</span> <span class="lose-text">${stat.losses}패</span></td>
-          <td>${winRate}%</td>
-          <td>${stat.goalsFor}/${stat.goalsAgainst}</td>
-          <td>${avgPossession}%</td>
-          <td>${avgEffectiveShoot} / ${avgTotalShoot}개</td>
-          <td>${passSuccessRate}%</td>
-          <td>${wookHtml}</td>
-        `;
-        tableBody.appendChild(row);
-      });
-
-      document.getElementById("tableContainer").style.display = "block";
-    }
-
-    window.onload = fetchUsersAndInitButtons;
-  </script>
+  <!-- 자바스크립트 로직 파일 연결 (HTML 맨 아래에 배치) -->
+  <script src="app.js"></script>
 </body>
 </html>
