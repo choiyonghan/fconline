@@ -91,22 +91,16 @@ tr.wook-row { background-color: #fffbeb; }
   padding: 16px;
 }
 .metric-title { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; text-transform: uppercase; }
-.metric-value { font-size: 18px; font-weight: bold; color: var(--text-dark); word-break: keep-all; }
+.metric-value { font-size: 20px; font-weight: bold; color: var(--text-dark); }
 .metric-sub { font-size: 12px; color: #475569; margin-top: 4px; }
 
-.badge {
+.mom-badge {
   display: inline-block;
+  background: #fef3c7;
+  color: #92400e;
   font-size: 11px;
   font-weight: bold;
   padding: 2px 8px;
   border-radius: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
-.goal-badge { background: #dcfce7; color: #166534; }
-.assist-badge { background: #e0f2fe; color: #075985; }
-.defense-badge { background: #f3e8ff; color: #6b21a8; }
-.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
-.stat-box { background: #f0f2f5; padding: 10px; border-radius: 8px; font-size: 11px; text-align: center; }
-.btn-nickname { font-size: 14px; padding: 12px; border-radius: 8px; border: 1px solid #ccc; background: white; }
-.btn-nickname.active { background: #007bff; color: white; border: none; }
-table { font-size: 12px; }
