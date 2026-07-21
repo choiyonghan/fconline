@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import ws from 'ws';
 
-// 1. 수집 대상 닉네임 목록 (DB에 없으면 자동으로 추가됨)
+// 1. 수집 대상 닉네임 목록 (DB에 없으면 자동으로 OUID를 조회하여 등록합니다)
 const TARGET_NICKNAMES = [
   'D로쏘네리',
   '내혀를가져가는',
@@ -79,26 +79,43 @@ async function fetchNexonApi(url) {
 async function main() {
   console.log("🚀 FC 온라인 데이터 수집 파이프라인 시작...");
 
+  const DELAY_MS = 100;
+
   // -------------------------------------------------------------
-  // 수집 대상 닉네임 자동 추가 (DB에 없으면 자동 Insert)
+  // [보완된 로직] 수집 대상 닉네임 DB 검증 및 자동 등록 (OUID 동시 발급)
   // -------------------------------------------------------------
   console.log("\n📋 수집 대상 닉네임 DB 검증 및 자동 등록 중...");
   for (const nickname of TARGET_NICKNAMES) {
     const { data: existingUser } = await supabase
       .from('users')
-      .select('nickname')
+      .select('nickname, ouid')
       .eq('nickname', nickname)
       .maybeSingle();
 
     if (!existingUser) {
+      console.log(`  └ 🔍 [${nickname}] DB에 없어 OUID를 먼저 조회합니다...`);
+      
+      // OUID 가져오기
+      const userData = await fetchNexonApi(`https://open.api.nexon.com/fconline/v1/id?nickname=${encodeURIComponent(nickname)}`);
+      await sleep(DELAY_MS);
+
+      if (!userData || !userData.ouid) {
+        console.error(`  └ ❌ [${nickname}] 넥슨 API에서 OUID를 찾을 수 없어 DB 추가를 스킵합니다.`);
+        continue;
+      }
+
+      // OUID와 함께 Insert (Not Null 제약조건 위반 방지)
       const { error: insertError } = await supabase
         .from('users')
-        .insert({ nickname: nickname });
+        .insert({ 
+          nickname: nickname,
+          ouid: userData.ouid 
+        });
 
       if (insertError) {
         console.error(`  └ ❌ [${nickname}] DB 추가 실패:`, insertError.message);
       } else {
-        console.log(`  └ ➕ [${nickname}] 신규 유저로 DB에 자동 추가되었습니다.`);
+        console.log(`  └ ➕ [${nickname}] 신규 유저 등록 완료 (OUID: ${userData.ouid})`);
       }
     } else {
       console.log(`  └ 🆗 [${nickname}] 이미 DB에 존재하는 유저입니다.`);
@@ -117,8 +134,6 @@ async function main() {
 
   console.log(`\n📌 총 ${users.length}명의 유저 데이터 수집/갱신을 진행합니다.`);
 
-  const DELAY_MS = 100;
-
   for (const user of users) {
     let currentOuid = user.ouid;
     let currentNickname = user.nickname;
@@ -126,9 +141,9 @@ async function main() {
     try {
       console.log(`\n🔍 [${currentNickname}] 데이터 수집 시작`);
 
-      // 1. OUID가 없는 경우 넥슨 API로 가져온 뒤 DB 저장
+      // OUID 재확인 (혹시 등록되지 않은 기존 데이터가 있을 경우 대비)
       if (!currentOuid) {
-        console.log(`  └ OUID 조회 중...`);
+        console.log(`  └ OUID 재조회 중...`);
         const userData = await fetchNexonApi(`https://open.api.nexon.com/fconline/v1/id?nickname=${encodeURIComponent(currentNickname)}`);
         
         if (!userData || !userData.ouid) {
@@ -174,7 +189,7 @@ async function main() {
 
         if (existingMatch) {
           skippedCount++;
-          continue; // API 호출 안 하고 스킵
+          continue; // API 호출 안 하고 바로 다음 매치로 스킵
         }
 
         // 새 매치만 상세 정보 API 호출
