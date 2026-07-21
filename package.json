@@ -1,0 +1,9 @@
+{
+  "name": "fconline-pipeline",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.48.1",
+    "ws": "^8.18.0"
+  }
+}
