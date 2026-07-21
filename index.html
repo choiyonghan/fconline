@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FC Online 상대 닉네임별 전적 분석</title>
   
-  <!-- CSS 스타일 파일 연결 -->
   <link rel="stylesheet" href="style.css">
-  
-  <!-- Supabase 라이브러리 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -16,9 +13,8 @@
   <h1>FC Online 상대 닉네임별 전적 분석</h1>
   
   <div class="nickname-container" id="nicknameButtons"></div>
-  <div id="status">DB에서 유저 목록을 불러오는 중입니다...</div>
+  <div id="status">DB 및 선수 메타데이터를 불러오는 중입니다...</div>
 
-  <!-- 메인 테이블 -->
   <div class="table-container" id="tableContainer">
     <table>
       <thead>
@@ -27,7 +23,7 @@
           <th>판수</th>
           <th>기본 전적 (승/무/패)</th>
           <th>승률</th>
-          <th>득/실</th>
+          <th>총 득/실</th>
           <th>평균 점유율</th>
           <th>유효/총 슈팅</th>
           <th>🏆 욱식 점수 및 승패</th>
@@ -37,7 +33,7 @@
     </table>
   </div>
 
-  <!-- ROW 클릭 시 활성화되는 상세 리포트 카드 -->
+  <!-- ROW 클릭 시 활성화되는 핵심 상세 리포트 -->
   <div class="detail-card" id="detailCard">
     <div class="detail-header">
       <div class="detail-title" id="detailTitle">상대 분석 상세 리포트</div>
@@ -45,33 +41,36 @@
     </div>
 
     <div class="dashboard-grid">
+      <!-- 1. 평균 득점 및 실점 -->
       <div class="metric-box">
-        <span class="mom-badge">⭐ 최고 활약 선수 (MOM)</span>
-        <div class="metric-value" id="momName">-</div>
-        <div class="metric-sub" id="momDetail">평점: - | 골/어시: -</div>
+        <div class="metric-title">📊 경기당 평균 득/실점</div>
+        <div class="metric-value" id="avgGoals">-</div>
+        <div class="metric-sub" id="totalGoalsSub">총 -득점 / 총 -실점</div>
       </div>
 
+      <!-- 2. 최다 득점 선수 -->
       <div class="metric-box">
-        <div class="metric-title">🎯 슈팅 퀄리티 (Shoot Detail)</div>
-        <div class="metric-value" id="boxShootRate">- %</div>
-        <div class="metric-sub" id="shootSub">박스 안 슈팅 비중 / 유효율 -%</div>
+        <span class="badge goal-badge">⚽ 최다 득점자</span>
+        <div class="metric-value" id="topScorerName">-</div>
+        <div class="metric-sub" id="topScorerDetail">총 -골 (경기당 -골)</div>
       </div>
 
+      <!-- 3. 최다 어시스트 선수 -->
       <div class="metric-box">
-        <div class="metric-title">🎨 빌드업 & 패스 스타일</div>
-        <div class="metric-value" id="passStyle">-</div>
-        <div class="metric-sub" id="throughPassRate">스루패스 성공률: -%</div>
+        <span class="badge assist-badge">🅰️ 최다 어시스트</span>
+        <div class="metric-value" id="topAssisterName">-</div>
+        <div class="metric-sub" id="topAssisterDetail">총 -어시스트 (경기당 -어시)</div>
       </div>
 
+      <!-- 4. 최다 수비 성공 선수 -->
       <div class="metric-box">
-        <div class="metric-title">🛡️ 수비 지수 (Tackle & Clean)</div>
-        <div class="metric-value" id="tackleRate">- %</div>
-        <div class="metric-sub" id="foulDetail">태클 성공률 | 경기당 파울 -회</div>
+        <span class="badge defense-badge">🛡️ 통곡의 벽 (최다 수비)</span>
+        <div class="metric-value" id="topDefenderName">-</div>
+        <div class="metric-sub" id="topDefenderDetail">총 -회 수비 성공</div>
       </div>
     </div>
   </div>
 
-  <!-- 자바스크립트 로직 파일 연결 (HTML 맨 아래에 배치) -->
   <script src="app.js"></script>
 </body>
 </html>
