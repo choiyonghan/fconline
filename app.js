@@ -112,6 +112,17 @@ async function handleNicknameClick(userObj, btnElement) {
 
     renderOpponentCards(selectedNickname, opponentGroup);
     statusEl.innerText = `분석 완료! 상대를 선택해 상세 전적을 확인하세요.`;
+
+    const dateStr = minDate <= maxDate ? `${minDate.toLocaleDateString()} ~ ${maxDate.toLocaleDateString()}` : "날짜 정보 없음";
+    document.getElementById("dateRange").innerText = `📅 분석 기간: ${dateStr}`;
+    document.getElementById("summaryInfo").style.display = "block";
+
+    // 👇 새로 추가할 부분: 상대 리스트를 그리기 전에 전체 종합 전적 카드를 먼저 그립니다. 👇
+    renderOverallStats(selectedNickname, matchDetails);
+    // 👆 ----------------------------------------------------------------------- 👆
+
+    renderOpponentCards(selectedNickname, opponentGroup);
+    statusEl.innerText = `분석 완료! 상대를 선택해 상세 전적을 확인하세요.`;
   } catch (err) {
     console.error("매치 데이터 로드 에러:", err);
     statusEl.innerText = "오류가 발생했습니다.";
