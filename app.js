@@ -44,11 +44,11 @@ async function fetchUsersAndInitButtons() {
   }
 }
 
-// 3. 닉네임 클릭 처리 (단방향 조회 롤백)
+// 3. 닉네임 클릭 처리 (단방향)
 async function handleNicknameClick(userObj, btnElement) {
   const statusEl = document.getElementById("status");
   const selectedNickname = userObj.nickname;
-  const userOuid = userObj.ouid; // 이 유저의 고유 ID
+  const userOuid = userObj.ouid; 
   
   document.querySelectorAll(".btn-nickname").forEach(b => b.classList.remove("active"));
   btnElement.classList.add("active");
@@ -58,7 +58,6 @@ async function handleNicknameClick(userObj, btnElement) {
   statusEl.innerText = "데이터 분석 중...";
 
   try {
-    // 💡 질문하신 부분! 여기서 해당 유저의 ouid와 일치하는 경기만 가져옵니다.
     const { data: matchDetails, error } = await db.from('match_details')
       .select('*')
       .eq('ouid', userOuid) 
@@ -119,7 +118,7 @@ async function handleNicknameClick(userObj, btnElement) {
   }
 }
 
-// 4. 모바일 최적화 상대 카드 리스트 렌더링 (욱식점수 나 위주로 수정)
+// 4. 모바일 최적화 상대 카드 리스트 렌더링
 function renderOpponentCards(selectedNickname, opponentGroup) {
   const container = document.getElementById("opponentList");
   container.innerHTML = "";
@@ -140,7 +139,6 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
     let wookHtml = "";
 
     if (hasWook) {
-      // 💡 욱식 점수 계산: 내 점수(클릭한 유저)를 먼저 배치
       let myScore = (stat.wins * 5) + (stat.draws * 3) + (stat.losses * 1);
       let opScore = (stat.losses * 5) + (stat.draws * 3) + (stat.wins * 1);
       let winnerText = myScore > opScore ? "승리! 🎉" : (myScore < opScore ? "패배..." : "무승부 🤝");
@@ -215,17 +213,18 @@ function renderDetailCard(userNick, opponentNick, stat) {
     streakEl.classList.add("neutral");
   }
 
-  const goalMap = {}, assistMap = {}, saveMap = {};
-  let validSquadMatchCount = 0;
+  const goalMap = {}, assistMap = {}, saveMap = {}, appMap = {};
 
   matches.forEach(m => {
     const squad = m.player_squad || m.player_squid || [];
-    if (squad.length > 0) validSquadMatchCount++;
 
     squad.forEach(p => {
       if (p.spPosition === 28) return; 
       const spId = p.spId || p.spid;
       if (!spId || spId === 0) return;
+      
+      appMap[spId] = (appMap[spId] || 0) + 1;
+
       const st = p.status || p;
 
       const g = Number(st.goal || 0);
@@ -255,9 +254,10 @@ function renderDetailCard(userNick, opponentNick, stat) {
   document.getElementById("totalGoalsSub").innerText = `총 ${stat.goalsFor}득점 / 총 ${stat.goalsAgainst}실점`;
 
   const setMetric = (nameId, detailId, topObj, unit) => {
-    if (topObj.id && validSquadMatchCount > 0) {
+    if (topObj.id && appMap[topObj.id]) {
+      const appearances = appMap[topObj.id]; 
       document.getElementById(nameId).innerText = getPlayerName(topObj.id);
-      document.getElementById(detailId).innerText = `${validSquadMatchCount}경기 ${topObj.count}${unit} (평균 ${(topObj.count / validSquadMatchCount).toFixed(2)}${unit})`;
+      document.getElementById(detailId).innerText = `${appearances}경기 ${topObj.count}${unit} (평균 ${(topObj.count / appearances).toFixed(2)}${unit})`;
     } else {
       document.getElementById(nameId).innerText = "기록 없음";
       document.getElementById(detailId).innerText = "(직접 갱신한 전적 필요)";
