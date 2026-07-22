@@ -296,7 +296,8 @@ if (hasWook) {
 
   wookHtml = `
     <div class="wook-badge-box">
-      🏆 욱식 점수: ${wookName} ${wookScore}점 vs ${normalName} ${normalScore}점 (${winnerText})
+      🏆 욱식 점수: ${wookName} ${wookScore}점 vs ${normalName} ${normalScore}점<br>
+      <strong>(${winnerText})</strong>
     </div>
   `;
 }
