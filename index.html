@@ -2,85 +2,91 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>FC Online 전적 분석 대시보드</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FC 온라인 상대전적 분석기</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+  <div class="app-container">
+    <header class="app-header">
+      <h1>⚽ FC 온라인 상대전적 분석기</h1>
+      <p id="status" class="status-text">사용자 데이터를 불러오는 중...</p>
+    </header>
 
-  <h1>FC Online 전적 분석</h1>
-  
-  <div class="nickname-container" id="nicknameButtons"></div>
-  <div id="status">DB 및 선수 메타데이터를 불러오는 중입니다...</div>
+    <!-- 유저 선택 버튼 목록 -->
+    <section class="user-selection">
+      <h2>👤 분석할 유저 선택</h2>
+      <div id="nicknameButtons" class="nickname-buttons-grid"></div>
+    </section>
 
-  <!-- 100% 꽉 채운 조회 영역 -->
-  <div class="summary-info" id="summaryInfo" style="display: none;">
-    <div class="summary-card">
-      <div class="date-range-header">
-        <span class="date-label">📅 조회</span>
-        <span id="dateRange" class="date-text">-</span>
+    <!-- 요약 정보 및 날짜 필터 -->
+    <section id="summaryInfo" class="summary-section" style="display: none;">
+      <div class="filter-card">
+        <div id="dateRange" class="date-range-text">📅 분석 기간 (KST): -</div>
+        <div class="date-filter-group">
+          <input type="date" id="startDate" class="date-input">
+          <span>~</span>
+          <input type="date" id="endDate" class="date-input">
+          <button id="btnSearchDate" class="btn btn-primary">조회</button>
+          <button id="btnResetDate" class="btn btn-secondary">초기화</button>
+        </div>
+      </div>
+
+      <!-- 종합 전적 카드 컨테이너 -->
+      <div id="overallStatsContainer"></div>
+    </section>
+
+    <!-- 상대 카드 리스트 및 아코디언 영역 -->
+    <section id="opponentList" class="opponent-grid" style="display: none;"></section>
+
+    <!-- 아코디언 이동용 상세 리포트 카드 (초기 숨김) -->
+    <div class="detail-card" id="detailCard" style="display: none;">
+      <div class="detail-header">
+        <div class="detail-title" id="detailTitle">상대 분석 상세 리포트</div>
+        <div class="streak-badge" id="streakBadge">-</div>
       </div>
       
-      <div class="date-filter-box">
-        <div class="date-inputs-wrapper">
-          <input type="date" id="startDate">
-          <span class="date-separator">~</span>
-          <input type="date" id="endDate">
+      <!-- 요약 뱃지 모음 -->
+      <div class="match-summary-badges">
+        <span class="badge info-badge" id="matchCountBadge">총 -경기</span>
+        <span class="badge info-badge" id="winRateBadge">승률 -%</span>
+      </div>
+
+      <!-- ⚽ 최근 경기 결과 (가로 스크롤) -->
+      <div class="recent-matches-container">
+        <div class="recent-matches-title">📜 최근 경기 결과 (가로 스크롤)</div>
+        <div class="recent-matches-scroll" id="recentMatchesScroll">
+          <!-- JS에서 승/무/패 칩들이 가로로 자동 삽입됩니다 -->
         </div>
-        <div class="date-buttons-wrapper">
-          <button id="btnSearchDate" type="button" class="btn-date-search">조회</button>
-          <button id="btnResetDate" type="button" class="btn-date-reset">전체</button>
+      </div>
+
+      <!-- 상세 지표 그리드 -->
+      <div class="dashboard-grid">
+        <div class="metric-box">
+          <div class="metric-label">평균 득실점</div>
+          <div class="metric-value" id="avgGoals">⚽ 0골 / 🛡️ 0실점</div>
+          <div class="metric-sub" id="totalGoalsSub">총 0득점 / 총 0실점</div>
         </div>
-      </div>
-    </div>
-  </div>
 
-  <div id="overallStatsContainer"></div>
-  
-  <!-- 모바일 카드 리스트 -->
-  <div class="opponent-list" id="opponentList" style="display: none;"></div>
+        <div class="metric-box">
+          <div class="metric-label">⚽ 최다 득점 선수</div>
+          <div class="metric-value" id="topScorerName">기록 없음</div>
+          <div class="metric-sub" id="topScorerDetail">-</div>
+        </div>
 
-  <!-- 아코디언 방식으로 이동할 상세 분석 리포트 카드 -->
-  <div class="detail-card" id="detailCard" style="display: none;">
-    <div class="detail-header">
-      <div class="detail-title" id="detailTitle">상대 분석 상세 리포트</div>
-      <div class="streak-badge" id="streakBadge">-</div>
-    </div>
-    
-    <!-- 요약 뱃지들 -->
-    <div class="match-summary-badges">
-      <span class="badge info-badge" id="matchCountBadge">총 -경기</span>
-      <span class="badge info-badge" id="winRateBadge">승률 -%</span>
-    </div>
+        <div class="metric-box">
+          <div class="metric-label">👟 최다 도움 선수</div>
+          <div class="metric-value" id="topAssisterName">기록 없음</div>
+          <div class="metric-sub" id="topAssisterDetail">-</div>
+        </div>
 
-    <div class="dashboard-grid">
-      <!-- 1. 평균 득점 및 실점 -->
-      <div class="metric-box">
-        <div class="metric-title">📊 경기당 평균 득/실점</div>
-        <div class="metric-value" id="avgGoals">-</div>
-        <div class="metric-sub" id="totalGoalsSub">총 -득점 / 총 -실점</div>
-      </div>
-
-      <!-- 2. 최다 득점 선수 -->
-      <div class="metric-box">
-        <span class="badge goal-badge">⚽ 최다 득점자</span>
-        <div class="metric-value" id="topScorerName">-</div>
-        <div class="metric-sub" id="topScorerDetail">-경기 -골 (평균 -골)</div>
-      </div>
-
-      <!-- 3. 최다 어시스트 선수 -->
-      <div class="metric-box">
-        <span class="badge assist-badge">🅰️ 최다 어시스트</span>
-        <div class="metric-value" id="topAssisterName">-</div>
-        <div class="metric-sub" id="topAssisterDetail">-경기 -도움 (평균 -도움)</div>
-      </div>
-
-      <!-- 4. 최다 선방 선수 -->
-      <div class="metric-box">
-        <span class="badge defense-badge">🧤 철벽 수문장 (최다 선방)</span>
-        <div class="metric-value" id="topDefenderName">-</div>
-        <div class="metric-sub" id="topDefenderDetail">-경기 -선방 (평균 -선방)</div>
+        <div class="metric-box">
+          <div class="metric-label">🧤 최다 선방 선수</div>
+          <div class="metric-value" id="topDefenderName">기록 없음</div>
+          <div class="metric-sub" id="topDefenderDetail">-</div>
+        </div>
       </div>
     </div>
   </div>
