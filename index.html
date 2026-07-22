@@ -14,17 +14,30 @@
   <div class="nickname-container" id="nicknameButtons"></div>
   <div id="status">DB 및 선수 메타데이터를 불러오는 중입니다...</div>
 
-  <!-- 전체 요약 정보 (기간 등) -->
+  <!-- 전체 요약 및 날짜 검색 영역 -->
   <div class="summary-info" id="summaryInfo" style="display: none;">
-    <div class="date-range" id="dateRange">📅 전적 기간: -</div>
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
+      <div class="date-range" id="dateRange">📅 분석 기간 (KST): -</div>
+      
+      <!-- 날짜 필터 검색바 -->
+      <div class="date-filter-box" style="display: flex; align-items: center; gap: 8px;">
+        <label for="startDate" style="font-size: 0.9rem; font-weight: bold;">조회 기간:</label>
+        <input type="date" id="startDate" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+        <span>~</span>
+        <input type="date" id="endDate" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+        <button id="btnSearchDate" style="padding: 5px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">조회</button>
+        <button id="btnResetDate" style="padding: 5px 10px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">전체보기</button>
+      </div>
+    </div>
   </div>
 
   <div id="overallStatsContainer"></div>
+  
   <!-- 모바일 친화적인 카드 리스트 (기존 테이블 대체) -->
   <div class="opponent-list" id="opponentList" style="display: none;"></div>
 
   <!-- 상세 분석 리포트 카드 -->
-  <div class="detail-card" id="detailCard">
+  <div class="detail-card" id="detailCard" style="display: none;">
     <div class="detail-header">
       <div class="detail-title" id="detailTitle">상대 분석 상세 리포트</div>
       <div class="streak-badge" id="streakBadge">-</div>
