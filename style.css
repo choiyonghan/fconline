@@ -60,7 +60,7 @@ body {
   margin-top: 4px;
 }
 
-/* 공통 카드 공통 스타일 */
+/* 공통 카드 스타일 */
 .card {
   background: var(--card-bg);
   border-radius: 14px;
@@ -162,7 +162,7 @@ body {
 .btn-secondary { background: #94a3b8; color: white; }
 
 /* ============================================================
-   🃏 상대 요약 카드 리스트 (1열 세로 배치)
+   🃏 상대 요약 카드 리스트
    ============================================================ */
 .opponent-list {
   display: flex;
@@ -270,6 +270,7 @@ body {
 
 .info-badge { background: #e0e7ff; color: #3730a3; }
 
+/* 뱃지 전용 클래스 */
 .streak-badge {
   padding: 3px 8px;
   border-radius: 12px;
@@ -279,6 +280,8 @@ body {
   color: #475569;
 }
 .streak-badge.good { background: #dcfce7; color: #15803d; }
+.streak-badge.bad { background: #fee2e2; color: #b91c1c; }
+.streak-badge.warning { background: #fef3c7; color: #b45309; }
 .streak-badge.neutral { background: #f1f5f9; color: #475569; }
 
 /* ============================================================
@@ -338,7 +341,7 @@ body {
 .match-chip.loss { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
 
 /* ============================================================
-   📊 상세 지표 그리드 (2열 모바일 반응형)
+   📊 상세 지표 그리드
    ============================================================ */
 .dashboard-grid {
   display: grid;
