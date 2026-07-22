@@ -180,16 +180,17 @@ async function main() {
       for (let i = 0; i < matchIds.length; i++) {
         const matchId = matchIds[i];
 
-        // DB 존재 여부 미리 체크 (존재 시 넥슨 API 호출 스킵)
-        const { data: existingMatch } = await supabase
-          .from('matches')
+        // 💡 [수정됨] matches가 아닌 match_details 테이블에서 '현재 유저(ouid)'의 기록이 있는지 확인
+        const { data: existingDetail } = await supabase
+          .from('match_details')
           .select('match_id')
           .eq('match_id', matchId)
+          .eq('ouid', currentOuid)
           .maybeSingle();
 
-        if (existingMatch) {
+        if (existingDetail) {
           skippedCount++;
-          continue; // API 호출 안 하고 바로 다음 매치로 스킵
+          continue; // 현재 유저의 상세 전적이 이미 있다면 API 호출 스킵
         }
 
         // 새 매치만 상세 정보 API 호출
@@ -198,12 +199,12 @@ async function main() {
 
         if (!matchData || !matchData.matchInfo) continue;
 
-        // matches 테이블 저장
-        await supabase.from('matches').insert({
+        // 💡 [수정됨] matches 테이블 저장 시 다른 유저를 통해 이미 저장된 match_id일 수 있으므로 upsert 사용 (중복 시 무시)
+        await supabase.from('matches').upsert({
           match_id: matchData.matchId,
           match_date: matchData.matchDate,
           match_type: matchType
-        });
+        }, { onConflict: 'match_id', ignoreDuplicates: true });
 
         // 내 정보 & 상대방 정보 분류
         const myInfo = matchData.matchInfo.find(m => m.ouid === currentOuid);
