@@ -5,7 +5,26 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const WOOK_NICKNAMES = ["지린성에사는욱구", "욱냥0I"];
 let spidMetaMap = {}; 
 
-// 1. 선수 메타데이터 로드
+// 현재 선택된 유저 정보 및 전체 매치 데이터 상태 관리
+let currentSelectedUser = null;
+let rawMatchDetails = []; 
+
+// 1. UTC 문자열을 KST Date 객체 및 포맷팅 문자열로 변환하는 헬퍼 함수
+function parseToKst(utcDateString) {
+  if (!utcDateString) return null;
+  const d = new Date(utcDateString); // 브라우저가 자동 KST 로컬 타임 변환
+  return d;
+}
+
+function formatDateToKstString(dateObj) {
+  if (!dateObj || isNaN(dateObj.getTime())) return "날짜 정보 없음";
+  const yyyy = dateObj.getFullYear();
+  const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const dd = String(dateObj.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// 2. 선수 메타데이터 로드
 async function loadSpidMeta() {
   try {
     const res = await fetch("https://open.api.nexon.com/static/fconline/meta/spid.json");
@@ -21,11 +40,16 @@ function getPlayerName(spId) {
   return spidMetaMap[spId] || `선수(ID:${spId})`;
 }
 
-// 2. 유저 로드 및 버튼 생성
+// 3. 유저 로드 및 버튼 생성
 async function fetchUsersAndInitButtons() {
   const statusEl = document.getElementById("status");
   const container = document.getElementById("nicknameButtons");
   await loadSpidMeta();
+  
+  // 날짜 필터 이벤트 리스너 등록
+  document.getElementById("btnSearchDate").onclick = applyDateFilter;
+  document.getElementById("btnResetDate").onclick = resetDateFilter;
+
   try {
     const { data: users, error } = await db.from('users').select('nickname, ouid').order('nickname', { ascending: true });
     if (error) throw error;
@@ -44,23 +68,29 @@ async function fetchUsersAndInitButtons() {
   }
 }
 
-// 3. 닉네임 클릭 처리
+// 4. 닉네임 클릭 처리
 async function handleNicknameClick(userObj, btnElement) {
   const statusEl = document.getElementById("status");
-  const selectedNickname = userObj.nickname;
-  const userOuid = userObj.ouid; 
+  currentSelectedUser = userObj;
   
   document.querySelectorAll(".btn-nickname").forEach(b => b.classList.remove("active"));
   btnElement.classList.add("active");
+  
   document.getElementById("opponentList").style.display = "none";
   document.getElementById("summaryInfo").style.display = "none";
   document.getElementById("detailCard").style.display = "none";
+  document.getElementById("overallStatsContainer").innerHTML = "";
+  
+  // 날짜 선택 박스 초기화
+  document.getElementById("startDate").value = "";
+  document.getElementById("endDate").value = "";
+  
   statusEl.innerText = "데이터 분석 중...";
 
   try {
     const { data: matchDetails, error } = await db.from('match_details')
       .select('*')
-      .eq('ouid', userOuid) 
+      .eq('ouid', userObj.ouid) 
       .order('id', { ascending: false });
 
     if (error) throw error;
@@ -69,52 +99,8 @@ async function handleNicknameClick(userObj, btnElement) {
       return;
     }
 
-    let minDate = new Date();
-    let maxDate = new Date(0);
-    
-    const opponentGroup = {};
-    matchDetails.forEach(detail => {
-      const dtStr = detail.match_date || detail.created_at;
-      if (dtStr) {
-        const d = new Date(dtStr);
-        if(d < minDate) minDate = d;
-        if(d > maxDate) maxDate = d;
-      }
-
-      const opName = detail.opponent_nick || "상대 미상";
-      if (!opponentGroup[opName]) {
-        opponentGroup[opName] = { 
-          total: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, 
-          posSum: 0, shootSum: 0, effShootSum: 0, matches: [] 
-        };
-      }
-      
-      const group = opponentGroup[opName];
-      group.total += 1;
-      
-      const mResult = detail.match_result;
-      if (mResult === "승") group.wins += 1;
-      else if (mResult === "무") group.draws += 1;
-      else if (mResult === "패") group.losses += 1;
-      
-      group.goalsFor += (detail.goals_for || 0);
-      group.goalsAgainst += (detail.goals_against || 0);
-      group.posSum += (detail.possession || 0);
-      group.shootSum += (detail.shoot_total || 0);
-      group.effShootSum += (detail.effective_shoot || 0);
-      
-      group.matches.push(detail);
-    });
-
-    const dateStr = minDate <= maxDate ? `${minDate.toLocaleDateString()} ~ ${maxDate.toLocaleDateString()}` : "날짜 정보 없음";
-    document.getElementById("dateRange").innerText = `📅 분석 기간: ${dateStr}`;
-    document.getElementById("summaryInfo").style.display = "block";
-
-    // ✅ 전체 종합 전적 렌더링 호출
-    renderOverallStats(selectedNickname, matchDetails);
-    
-    // 개별 상대 전적 렌더링
-    renderOpponentCards(selectedNickname, opponentGroup);
+    rawMatchDetails = matchDetails; // 원본 데이터 보관
+    processAndRenderMatches(rawMatchDetails); // 필터 없이 전체 데이터로 연산
     
     statusEl.innerText = `분석 완료! 상대를 선택해 상세 전적을 확인하세요.`;
   } catch (err) {
@@ -123,7 +109,108 @@ async function handleNicknameClick(userObj, btnElement) {
   }
 }
 
-// 4. 전체 종합 전적 렌더링 함수
+// 5. 날짜 필터링 적용 처리 함수
+function applyDateFilter() {
+  if (!rawMatchDetails || rawMatchDetails.length === 0) return;
+
+  const startVal = document.getElementById("startDate").value;
+  const endVal = document.getElementById("endDate").value;
+
+  if (!startVal && !endVal) {
+    processAndRenderMatches(rawMatchDetails);
+    return;
+  }
+
+  const startTarget = startVal ? new Date(`${startVal}T00:00:00+09:00`) : new Date(0);
+  const endTarget = endVal ? new Date(`${endVal}T23:59:59+09:00`) : new Date("2099-12-31");
+
+  const filteredMatches = rawMatchDetails.filter(detail => {
+    const matchTimeStr = detail.match_date || detail.created_at;
+    if (!matchTimeStr) return false;
+    const kstDate = parseToKst(matchTimeStr);
+    return kstDate >= startTarget && kstDate <= endTarget;
+  });
+
+  const statusEl = document.getElementById("status");
+  if (filteredMatches.length === 0) {
+    statusEl.innerText = "해당 기간 내 경기 데이터가 없습니다.";
+    document.getElementById("opponentList").style.display = "none";
+    document.getElementById("detailCard").style.display = "none";
+    document.getElementById("overallStatsContainer").innerHTML = "";
+    return;
+  }
+
+  statusEl.innerText = `필터 적용 완료 (${filteredMatches.length}경기 검색됨)`;
+  processAndRenderMatches(filteredMatches);
+}
+
+// 6. 날짜 필터 초기화 함수
+function resetDateFilter() {
+  document.getElementById("startDate").value = "";
+  document.getElementById("endDate").value = "";
+  if (rawMatchDetails && rawMatchDetails.length > 0) {
+    document.getElementById("status").innerText = "전체 기간으로 조회를 다시 실행했습니다.";
+    processAndRenderMatches(rawMatchDetails);
+  }
+}
+
+// 7. 매치 데이터 가공 및 화면 렌더링
+function processAndRenderMatches(matchList) {
+  let minDate = new Date("2099-12-31");
+  let maxDate = new Date(0);
+  
+  const opponentGroup = {};
+  
+  matchList.forEach(detail => {
+    const dtStr = detail.match_date || detail.created_at;
+    if (dtStr) {
+      const kstDate = parseToKst(dtStr);
+      if (kstDate < minDate) minDate = kstDate;
+      if (kstDate > maxDate) maxDate = kstDate;
+    }
+
+    const opName = detail.opponent_nick || "상대 미상";
+    if (!opponentGroup[opName]) {
+      opponentGroup[opName] = { 
+        total: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, 
+        posSum: 0, shootSum: 0, effShootSum: 0, matches: [] 
+      };
+    }
+    
+    const group = opponentGroup[opName];
+    group.total += 1;
+    
+    const mResult = detail.match_result;
+    if (mResult === "승") group.wins += 1;
+    else if (mResult === "무") group.draws += 1;
+    else if (mResult === "패") group.losses += 1;
+    
+    group.goalsFor += (detail.goals_for || 0);
+    group.goalsAgainst += (detail.goals_against || 0);
+    group.posSum += (detail.possession || 0);
+    group.shootSum += (detail.shoot_total || 0);
+    group.effShootSum += (detail.effective_shoot || 0);
+    
+    group.matches.push(detail);
+  });
+
+  // KST 분석 기간 렌더링
+  const dateStr = minDate <= maxDate 
+    ? `${formatDateToKstString(minDate)} ~ ${formatDateToKstString(maxDate)}` 
+    : "날짜 정보 없음";
+    
+  document.getElementById("dateRange").innerText = `📅 분석 기간 (KST): ${dateStr}`;
+  document.getElementById("summaryInfo").style.display = "block";
+
+  // 상세 카드는 갱신 시 숨김
+  document.getElementById("detailCard").style.display = "none";
+
+  // 종합 전적 및 상대 카드 렌더링
+  renderOverallStats(currentSelectedUser.nickname, matchList);
+  renderOpponentCards(currentSelectedUser.nickname, opponentGroup);
+}
+
+// 8. 전체 종합 전적 렌더링 함수
 function renderOverallStats(userNick, matches) {
   const container = document.getElementById("overallStatsContainer");
   if (!container) return;
@@ -232,7 +319,7 @@ function renderOverallStats(userNick, matches) {
   `;
 }
 
-// 5. 모바일 최적화 상대 카드 리스트 렌더링
+// 9. 상대 카드 리스트 렌더링
 function renderOpponentCards(selectedNickname, opponentGroup) {
   const container = document.getElementById("opponentList");
   container.innerHTML = "";
@@ -252,55 +339,35 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
     const hasWook = isSelectedWook || isOpWook;
     let wookHtml = "";
 
-if (hasWook) {
-  let wookScore;
-  let normalScore;
-  let wookName = "";
-  let normalName = "";
+    if (hasWook) {
+      let wookScore, normalScore;
+      let wookName = "", normalName = "";
 
-  if (isSelectedWook) {
-    // 선택자가 욱
-    wookName = selectedNickname;
-    normalName = opName;
+      if (isSelectedWook) {
+        wookName = selectedNickname;
+        normalName = opName;
+        wookScore = (stat.wins * 5) + (stat.draws * 3) + (stat.losses * 1);
+        normalScore = (stat.losses * 3) + (stat.draws * 1);
+      } else {
+        wookName = opName;
+        normalName = selectedNickname;
+        wookScore = (stat.losses * 5) + (stat.draws * 3) + (stat.wins * 1);
+        normalScore = (stat.wins * 3) + (stat.draws * 1);
+      }
 
-    wookScore =
-      (stat.wins * 5) +
-      (stat.draws * 3) +
-      (stat.losses * 1);
+      let winnerText = wookScore > normalScore
+        ? `${wookName} 승리! 🎉`
+        : wookScore < normalScore
+          ? `${normalName} 승리! 🎉`
+          : "무승부 🤝";
 
-    normalScore =
-      (stat.losses * 3) +
-      (stat.draws * 1);
-
-  } else {
-    // 상대가 욱
-    wookName = opName;
-    normalName = selectedNickname;
-
-    wookScore =
-      (stat.losses * 5) +
-      (stat.draws * 3) +
-      (stat.wins * 1);
-
-    normalScore =
-      (stat.wins * 3) +
-      (stat.draws * 1);
-  }
-
-  let winnerText =
-    wookScore > normalScore
-      ? `${wookName} 승리! 🎉`
-      : wookScore < normalScore
-        ? `${normalName} 승리! 🎉`
-        : "무승부 🤝";
-
-  wookHtml = `
-    <div class="wook-badge-box">
-      🏆 욱식 점수: ${wookName} ${wookScore}점 vs ${normalName} ${normalScore}점<br>
-      <strong>(${winnerText})</strong>
-    </div>
-  `;
-}
+      wookHtml = `
+        <div class="wook-badge-box">
+          🏆 욱식 점수: ${wookName} ${wookScore}점 vs ${normalName} ${normalScore}점<br>
+          <strong>(${winnerText})</strong>
+        </div>
+      `;
+    }
 
     const card = document.createElement("div");
     card.className = `op-card ${hasWook ? 'wook-card' : ''}`;
@@ -339,7 +406,7 @@ if (hasWook) {
   container.style.display = "grid";
 }
 
-// 6. 상대별 상세 분석 렌더링
+// 10. 상대별 상세 분석 렌더링
 function renderDetailCard(userNick, opponentNick, stat) {
   const detailCard = document.getElementById("detailCard");
   const matches = stat.matches;
