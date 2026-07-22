@@ -255,9 +255,14 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
 if (hasWook) {
   let wookScore;
   let normalScore;
+  let wookName = "";
+  let normalName = "";
 
   if (isSelectedWook) {
-    // 선택한 유저가 욱인 경우
+    // 선택자가 욱
+    wookName = selectedNickname;
+    normalName = opName;
+
     wookScore =
       (stat.wins * 5) +
       (stat.draws * 3) +
@@ -265,11 +270,13 @@ if (hasWook) {
 
     normalScore =
       (stat.losses * 3) +
-      (stat.draws * 1) +
-      (stat.wins * 0);
+      (stat.draws * 1);
 
   } else {
-    // 상대가 욱인 경우
+    // 상대가 욱
+    wookName = opName;
+    normalName = selectedNickname;
+
     wookScore =
       (stat.losses * 5) +
       (stat.draws * 3) +
@@ -277,20 +284,19 @@ if (hasWook) {
 
     normalScore =
       (stat.wins * 3) +
-      (stat.draws * 1) +
-      (stat.losses * 0);
+      (stat.draws * 1);
   }
 
   let winnerText =
     wookScore > normalScore
-      ? "욱 승리! 🎉"
+      ? `${wookName} 승리! 🎉`
       : wookScore < normalScore
-        ? "상대 승리..."
+        ? `${normalName} 승리! 🎉`
         : "무승부 🤝";
 
   wookHtml = `
     <div class="wook-badge-box">
-      🏆 욱식 점수: 욱 ${wookScore}점 vs 상대 ${normalScore}점 (${winnerText})
+      🏆 욱식 점수: ${wookName} ${wookScore}점 vs ${normalName} ${normalScore}점 (${winnerText})
     </div>
   `;
 }
