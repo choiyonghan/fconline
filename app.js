@@ -316,7 +316,7 @@ function renderOverallStats(userNick, matches) {
   `;
 }
 
-// 8. 상대 카드 리스트 렌더링 (아코디언 구조)
+// 8. 상대 카드 리스트 렌더링
 function renderOpponentCards(selectedNickname, opponentGroup) {
   const container = document.getElementById("opponentList");
   container.innerHTML = "";
@@ -416,7 +416,7 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
   container.style.display = "flex";
 }
 
-// 9. 상대별 상세 분석 렌더링 (가로 스크롤 실제 데이터 삽입)
+// 9. 상대별 상세 분석 렌더링
 function renderDetailCard(userNick, opponentNick, stat) {
   const detailCard = document.getElementById("detailCard");
   const matches = stat.matches;
@@ -426,46 +426,32 @@ function renderDetailCard(userNick, opponentNick, stat) {
   document.getElementById("matchCountBadge").innerText = `총 ${totalMatches}경기`;
   document.getElementById("winRateBadge").innerText = `승률 ${((stat.wins/totalMatches)*100).toFixed(1)}%`;
 
-  // --- 🔥 최근 경기 결과 가로 스크롤 렌더링 ---
-  const scrollContainer = document.getElementById("recentMatchesScroll");
-  if (scrollContainer) {
-    scrollContainer.innerHTML = "";
-    
-    matches.forEach((m) => {
-      const res = m.match_result || "무";
-      const gFor = m.goals_for !== undefined ? m.goals_for : 0;
-      const gAgainst = m.goals_against !== undefined ? m.goals_against : 0;
+  // --- 연승, 연패, 무패(패배 없음), 무승(승리 없음) 계산 ---
+  let winS = 0;      // 연승 (승리 연속)
+  let loseS = 0;     // 연패 (패배 연속)
+  let unbeatenS = 0; // 무패 (승 또는 무 연속 = 패배가 없음)
+  let winlessS = 0;  // 무승 (무 또는 패 연속 = 승리가 없음)
 
-      let typeClass = "draw";
-      if (res === "승") typeClass = "win";
-      else if (res === "패") typeClass = "loss";
-
-      const chip = document.createElement("div");
-      chip.className = `match-chip ${typeClass}`;
-      chip.innerHTML = `
-        <span>${res}</span>
-        <span class="chip-score">${gFor}:${gAgainst}</span>
-      `;
-      scrollContainer.appendChild(chip);
-    });
-  }
-
-  // 연승/연패 계산
-  let winS = 0, loseS = 0, unbeatenS = 0;
   for (let m of matches) { if (m.match_result === '승') winS++; else break; }
   for (let m of matches) { if (m.match_result === '패') loseS++; else break; }
   for (let m of matches) { if (m.match_result === '승' || m.match_result === '무') unbeatenS++; else break; }
+  for (let m of matches) { if (m.match_result === '무' || m.match_result === '패') winlessS++; else break; }
 
   let streakEl = document.getElementById("streakBadge");
   streakEl.className = "streak-badge"; 
-  if (winS > 0) {
-    streakEl.innerText = unbeatenS > winS ? `${winS}연승! (${unbeatenS}경기 무패)` : `${winS}연승 중! 🔥`;
+
+  if (winS >= 2) {
+    streakEl.innerText = `${winS}연승 중! 🔥`;
     streakEl.classList.add("good");
-  } else if (loseS > 0) {
+  } else if (loseS >= 2) {
     streakEl.innerText = `${loseS}연패 중... 😭`;
-  } else if (unbeatenS > 0) {
+    streakEl.classList.add("bad");
+  } else if (unbeatenS >= 2) {
     streakEl.innerText = `${unbeatenS}경기 무패 중 🛡️`;
     streakEl.classList.add("good");
+  } else if (winlessS >= 2) {
+    streakEl.innerText = `${winlessS}경기 무승 중 ⚠️`;
+    streakEl.classList.add("warning");
   } else {
     streakEl.innerText = "연승/연패 없음";
     streakEl.classList.add("neutral");
