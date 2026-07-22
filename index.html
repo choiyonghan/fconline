@@ -16,24 +16,24 @@
 
   <!-- 전체 요약 및 날짜 검색 영역 -->
   <div class="summary-info" id="summaryInfo" style="display: none;">
-    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 15px;">
       <div class="date-range" id="dateRange">📅 분석 기간 (KST): -</div>
       
-      <!-- 날짜 필터 검색바 -->
-      <div class="date-filter-box" style="display: flex; align-items: center; gap: 8px;">
-        <label for="startDate" style="font-size: 0.9rem; font-weight: bold;">조회 기간:</label>
-        <input type="date" id="startDate" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
-        <span>~</span>
-        <input type="date" id="endDate" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
-        <button id="btnSearchDate" style="padding: 5px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">조회</button>
-        <button id="btnResetDate" style="padding: 5px 10px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">전체보기</button>
+      <!-- 예쁘게 스타일링된 날짜 필터 검색바 -->
+      <div class="date-filter-box" style="display: flex; align-items: center; gap: 8px; background: #f8f9fa; padding: 8px 14px; border-radius: 8px; border: 1px solid #e9ecef; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+        <label for="startDate" style="font-size: 0.85rem; font-weight: 600; color: #495057;">조회 기간:</label>
+        <input type="date" id="startDate" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #ced4da; font-size: 0.85rem; color: #495057; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#007bff'" onblur="this.style.borderColor='#ced4da'">
+        <span style="color: #868e96; font-size: 0.85rem;">~</span>
+        <input type="date" id="endDate" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #ced4da; font-size: 0.85rem; color: #495057; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#007bff'" onblur="this.style.borderColor='#ced4da'">
+        <button id="btnSearchDate" type="button" style="padding: 6px 14px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,123,255,0.2);" onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">조회</button>
+        <button id="btnResetDate" type="button" style="padding: 6px 12px; background: #6c757d; color: white; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#5a6268'" onmouseout="this.style.background='#6c757d'">전체보기</button>
       </div>
     </div>
   </div>
 
   <div id="overallStatsContainer"></div>
   
-  <!-- 모바일 친화적인 카드 리스트 (기존 테이블 대체) -->
+  <!-- 모바일 친화적인 카드 리스트 -->
   <div class="opponent-list" id="opponentList" style="display: none;"></div>
 
   <!-- 상세 분석 리포트 카드 -->
