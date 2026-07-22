@@ -426,11 +426,26 @@ function renderDetailCard(userNick, opponentNick, stat) {
   document.getElementById("matchCountBadge").innerText = `총 ${totalMatches}경기`;
   document.getElementById("winRateBadge").innerText = `승률 ${((stat.wins/totalMatches)*100).toFixed(1)}%`;
 
-  // --- 연승, 연패, 무패(패배 없음), 무승(승리 없음) 계산 ---
-  let winS = 0;      // 연승 (승리 연속)
-  let loseS = 0;     // 연패 (패배 연속)
-  let unbeatenS = 0; // 무패 (승 또는 무 연속 = 패배가 없음)
-  let winlessS = 0;  // 무승 (무 또는 패 연속 = 승리가 없음)
+  // --- 최근 경기 칩 렌더링 ---
+  const matchesContainer = document.getElementById("recentMatchesContainer");
+  matchesContainer.innerHTML = "";
+
+  matches.forEach(m => {
+    const chip = document.createElement("div");
+    let resultClass = "draw";
+    if (m.match_result === "승") resultClass = "win";
+    else if (m.match_result === "패") resultClass = "lose";
+
+    chip.className = `match-chip ${resultClass}`;
+    chip.innerText = `${m.match_result} (${m.goals_for}:${m.goals_against})`;
+    matchesContainer.appendChild(chip);
+  });
+
+  // --- 연승, 연패, 무패, 무승 계산 ---
+  let winS = 0;      
+  let loseS = 0;     
+  let unbeatenS = 0; 
+  let winlessS = 0;  
 
   for (let m of matches) { if (m.match_result === '승') winS++; else break; }
   for (let m of matches) { if (m.match_result === '패') loseS++; else break; }
