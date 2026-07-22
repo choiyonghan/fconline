@@ -5,7 +5,7 @@
   --primary-color: #2563eb;
   --primary-hover: #1d4ed8;
   --bg-color: #f1f5f9;
-  --body-bg: #e2e8f0; /* PC 배경색 */
+  --body-bg: #e2e8f0;
   --card-bg: #ffffff;
   --text-main: #0f172a;
   --text-muted: #64748b;
@@ -32,7 +32,6 @@ body {
   min-height: 100vh;
 }
 
-/* 📱 PC에서도 스마트폰 비율(Max 480px)로 가운데 고정 */
 .mobile-wrapper {
   width: 100%;
   max-width: 480px;
@@ -76,9 +75,7 @@ body {
   margin-bottom: 10px;
 }
 
-/* ============================================================
-   👤 유저 선택 버튼 영역
-   ============================================================ */
+/* 👤 유저 선택 버튼 */
 .nickname-buttons-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -98,9 +95,7 @@ body {
   text-align: center;
 }
 
-.btn-nickname:active {
-  transform: scale(0.97);
-}
+.btn-nickname:active { transform: scale(0.97); }
 
 .btn-nickname.active {
   background: var(--primary-color);
@@ -109,9 +104,7 @@ body {
   box-shadow: 0 3px 8px rgba(37, 99, 235, 0.3);
 }
 
-/* ============================================================
-   📅 날짜 필터 영역
-   ============================================================ */
+/* 📅 날짜 필터 */
 .date-range-text {
   font-weight: 700;
   font-size: 0.85rem;
@@ -161,9 +154,7 @@ body {
 .btn-primary { background: var(--primary-color); color: white; }
 .btn-secondary { background: #94a3b8; color: white; }
 
-/* ============================================================
-   🃏 상대 요약 카드 리스트
-   ============================================================ */
+/* 🃏 상대 카드 리스트 */
 .opponent-list {
   display: flex;
   flex-direction: column;
@@ -179,9 +170,7 @@ body {
   transition: all 0.15s ease;
 }
 
-.op-card:active {
-  transform: scale(0.98);
-}
+.op-card:active { transform: scale(0.98); }
 
 .op-card.selected {
   border: 2px solid var(--primary-color);
@@ -228,9 +217,7 @@ body {
   line-height: 1.3;
 }
 
-/* ============================================================
-   🪗 상세 분석 리포트 카드 (아코디언 토글)
-   ============================================================ */
+/* 🪗 상세 분석 리포트 카드 */
 .detail-card {
   background: var(--card-bg);
   border: 2px solid var(--primary-color);
@@ -258,7 +245,7 @@ body {
 .match-summary-badges {
   display: flex;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .badge {
@@ -284,65 +271,51 @@ body {
 .streak-badge.warning { background: #fef3c7; color: #b45309; }
 .streak-badge.neutral { background: #f1f5f9; color: #475569; }
 
-/* ============================================================
-   ⚽ 최근 경기 결과 가로 스크롤 배지
-   ============================================================ */
-.recent-matches-container {
-  margin: 8px 0 12px;
-  background: #f8fafc;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
+/* 📜 최근 경기 결과 트랙 */
+.recent-matches-section {
+  margin-bottom: 12px;
 }
 
 .recent-matches-title {
-  font-size: 10px;
+  font-size: 0.78rem;
   font-weight: 700;
-  color: #64748b;
+  color: var(--text-muted);
   margin-bottom: 6px;
 }
 
-.recent-matches-scroll {
+.recent-matches-container {
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  white-space: nowrap;
-  padding-bottom: 2px;
+  padding-bottom: 6px;
   -webkit-overflow-scrolling: touch;
 }
 
-.recent-matches-scroll::-webkit-scrollbar { height: 3px; }
-.recent-matches-scroll::-webkit-scrollbar-thumb {
+.recent-matches-container::-webkit-scrollbar {
+  height: 4px;
+}
+.recent-matches-container::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 .match-chip {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-width: 42px;
-  padding: 5px 6px;
+  flex: 0 0 auto;
+  padding: 6px 10px;
   border-radius: 8px;
-  font-size: 11px;
-  font-weight: 800;
-  flex-shrink: 0;
-}
-
-.match-chip .chip-score {
-  font-size: 9.5px;
-  font-weight: 600;
-  margin-top: 1px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .match-chip.win { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+.match-chip.lose { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
 .match-chip.draw { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-.match-chip.loss { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
 
-/* ============================================================
-   📊 상세 지표 그리드
-   ============================================================ */
+/* 📊 상세 지표 그리드 */
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
