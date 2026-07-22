@@ -272,4 +272,119 @@ function renderDetailCard(userNick, opponentNick, stat) {
   detailCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// 6. 전체 종합 전적 렌더링 함수
+function renderOverallStats(userNick, matches) {
+  const container = document.getElementById("overallStatsContainer");
+  if (!container) return;
+
+  const totalMatches = matches.length;
+  if (totalMatches === 0) {
+    container.innerHTML = "";
+    return;
+  }
+
+  let wins = 0, draws = 0, losses = 0;
+  let goalsFor = 0, goalsAgainst = 0;
+  let posSum = 0, shootSum = 0, effShootSum = 0;
+  
+  const goalMap = {}, assistMap = {}, saveMap = {}, appMap = {};
+
+  matches.forEach(m => {
+    // 1. 팀 단위 스탯 합산
+    if (m.match_result === '승') wins++;
+    else if (m.match_result === '무') draws++;
+    else if (m.match_result === '패') losses++;
+
+    goalsFor += (m.goals_for || 0);
+    goalsAgainst += (m.goals_against || 0);
+    posSum += (m.possession || 0);
+    shootSum += (m.shoot_total || 0);
+    effShootSum += (m.effective_shoot || 0);
+
+    // 2. 선수 단위 스탯 합산 (출전 횟수 기반)
+    const squad = m.player_squad || m.player_squid || [];
+    squad.forEach(p => {
+      if (p.spPosition === 28) return; // 후보 제외
+      const spId = p.spId || p.spid;
+      if (!spId || spId === 0) return;
+      
+      appMap[spId] = (appMap[spId] || 0) + 1; // 출전 횟수 누적
+      
+      const st = p.status || p;
+      const g = Number(st.goal || 0);
+      if (g > 0) goalMap[spId] = (goalMap[spId] || 0) + g;
+
+      const a = Number(st.assist || 0);
+      if (a > 0) assistMap[spId] = (assistMap[spId] || 0) + a;
+
+      const sv = Number(st.save || st.defending || 0); 
+      if (sv > 0) saveMap[spId] = (saveMap[spId] || 0) + sv;
+    });
+  });
+
+  // 평균 스탯 계산
+  const winRate = ((wins / totalMatches) * 100).toFixed(1);
+  const avgGoalsFor = (goalsFor / totalMatches).toFixed(1);
+  const avgGoalsAgainst = (goalsAgainst / totalMatches).toFixed(1);
+  const avgPoss = (posSum / totalMatches).toFixed(1);
+  const avgShoot = (shootSum / totalMatches).toFixed(1);
+  const avgEffShoot = (effShootSum / totalMatches).toFixed(1);
+
+  // 최고 선수 추출 로직
+  const getTopPlayer = (map) => {
+    let topId = null, maxVal = 0;
+    for (const id in map) { if (map[id] > maxVal) { maxVal = map[id]; topId = id; } }
+    return { id: topId, count: maxVal };
+  };
+
+  const topScorer = getTopPlayer(goalMap);
+  const topAssister = getTopPlayer(assistMap);
+  const topSaver = getTopPlayer(saveMap);
+
+  // 텍스트 포맷팅 함수
+  const getTopText = (topObj, unit) => {
+    if (!topObj.id || !appMap[topObj.id]) return `<span style="color:#888;">기록 없음</span>`;
+    const apps = appMap[topObj.id];
+    const name = getPlayerName(topObj.id);
+    const avg = (topObj.count / apps).toFixed(2);
+    return `<strong>${name}</strong> (${apps}경기 ${topObj.count}${unit} / 경기당 ${avg}${unit})`;
+  };
+
+  // 전체 요약 카드 HTML 생성
+  container.innerHTML = `
+    <div class="op-card" style="margin-bottom: 25px; border: 2px solid #ffcc00; background-color: #fffdf5; cursor: default;">
+      <div class="op-card-header">
+        <div class="op-name">👑 '${userNick}' 종합 전적</div>
+        <div class="op-winrate">총 승률 ${winRate}%</div>
+      </div>
+      <div class="op-card-stats" style="grid-template-columns: repeat(2, 1fr); gap: 15px;">
+        <div class="op-stat-item">
+          <div style="color:var(--text-muted)">총 ${totalMatches}전</div>
+          <div class="op-stat-val"><span class="win-text">${wins}승</span> ${draws}무 <span class="lose-text">${losses}패</span></div>
+        </div>
+        <div class="op-stat-item">
+          <div style="color:var(--text-muted)">평균 득/실점</div>
+          <div class="op-stat-val">⚽ ${avgGoalsFor} / 🛡️ ${avgGoalsAgainst}</div>
+        </div>
+        <div class="op-stat-item">
+          <div style="color:var(--text-muted)">평균 점유율</div>
+          <div class="op-stat-val">${avgPoss}%</div>
+        </div>
+        <div class="op-stat-item">
+          <div style="color:var(--text-muted)">유효/총 슈팅 (평균)</div>
+          <div class="op-stat-val">${avgEffShoot} / ${avgShoot}</div>
+        </div>
+      </div>
+      
+      <hr style="border:0; border-top:1px dashed #ccc; margin: 15px 0;">
+      
+      <div class="op-card-stats" style="grid-template-columns: 1fr; gap: 8px; text-align: left; padding: 0 10px;">
+        <div style="font-size: 0.95rem;">⚽ <span style="color:#666; margin-right:5px;">종합 최다 득점:</span> ${getTopText(topScorer, '골')}</div>
+        <div style="font-size: 0.95rem;">👟 <span style="color:#666; margin-right:5px;">종합 최다 도움:</span> ${getTopText(topAssister, '도움')}</div>
+        <div style="font-size: 0.95rem;">🧤 <span style="color:#666; margin-right:5px;">종합 최다 선방:</span> ${getTopText(topSaver, '선방')}</div>
+      </div>
+    </div>
+  `;
+}
+
 window.onload = fetchUsersAndInitButtons;
