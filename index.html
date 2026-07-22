@@ -3,41 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FC Online 상대 닉네임별 전적 분석</title>
-  
+  <title>FC Online 전적 분석 대시보드</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-  <h1>FC Online 상대 닉네임별 전적 분석</h1>
+  <h1>FC Online 전적 분석</h1>
   
   <div class="nickname-container" id="nicknameButtons"></div>
   <div id="status">DB 및 선수 메타데이터를 불러오는 중입니다...</div>
 
-  <div class="table-container" id="tableContainer">
-    <table>
-      <thead>
-        <tr>
-          <th style="text-align: left; padding-left: 16px;">상대 닉네임 (클릭하여 상세분석)</th>
-          <th>판수</th>
-          <th>기본 전적 (승/무/패)</th>
-          <th>승률</th>
-          <th>총 득/실</th>
-          <th>평균 점유율</th>
-          <th>유효/총 슈팅</th>
-          <th>🏆 욱식 점수 및 승패</th>
-        </tr>
-      </thead>
-      <tbody id="resultTableBody"></tbody>
-    </table>
+  <!-- 전체 요약 정보 (기간 등) -->
+  <div class="summary-info" id="summaryInfo" style="display: none;">
+    <div class="date-range" id="dateRange">📅 전적 기간: -</div>
   </div>
 
-  <!-- ROW 클릭 시 활성화되는 핵심 상세 리포트 -->
+  <!-- 모바일 친화적인 카드 리스트 (기존 테이블 대체) -->
+  <div class="opponent-list" id="opponentList" style="display: none;"></div>
+
+  <!-- 상세 분석 리포트 카드 -->
   <div class="detail-card" id="detailCard">
     <div class="detail-header">
       <div class="detail-title" id="detailTitle">상대 분석 상세 리포트</div>
-      <span class="click-hint">💡 행을 클릭하면 다른 상대 지표로 전환됩니다.</span>
+      <div class="streak-badge" id="streakBadge">-</div>
+    </div>
+    
+    <!-- 요약 뱃지들 -->
+    <div class="match-summary-badges">
+      <span class="badge info-badge" id="matchCountBadge">총 -경기</span>
+      <span class="badge info-badge" id="winRateBadge">승률 -%</span>
+      <span class="click-hint">💡 다른 상대를 클릭하면 지표가 전환됩니다.</span>
     </div>
 
     <div class="dashboard-grid">
@@ -52,21 +48,21 @@
       <div class="metric-box">
         <span class="badge goal-badge">⚽ 최다 득점자</span>
         <div class="metric-value" id="topScorerName">-</div>
-        <div class="metric-sub" id="topScorerDetail">총 -골 (경기당 -골)</div>
+        <div class="metric-sub" id="topScorerDetail">-경기 -골 (평균 -골)</div>
       </div>
 
       <!-- 3. 최다 어시스트 선수 -->
       <div class="metric-box">
         <span class="badge assist-badge">🅰️ 최다 어시스트</span>
         <div class="metric-value" id="topAssisterName">-</div>
-        <div class="metric-sub" id="topAssisterDetail">총 -어시스트 (경기당 -어시)</div>
+        <div class="metric-sub" id="topAssisterDetail">-경기 -도움 (평균 -도움)</div>
       </div>
 
-      <!-- 4. 최다 수비 성공 선수 -->
+      <!-- 4. 최다 선방 선수 (골키퍼 지표) -->
       <div class="metric-box">
-        <span class="badge defense-badge">🛡️ 통곡의 벽 (최다 수비)</span>
+        <span class="badge defense-badge">🧤 철벽 수문장 (최다 선방)</span>
         <div class="metric-value" id="topDefenderName">-</div>
-        <div class="metric-sub" id="topDefenderDetail">총 -회 수비 성공</div>
+        <div class="metric-sub" id="topDefenderDetail">-경기 -선방 (평균 -선방)</div>
       </div>
     </div>
   </div>
