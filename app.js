@@ -317,7 +317,7 @@ function renderOverallStats(userNick, matches) {
   `;
 }
 
-// 8. 상대 카드 리스트 렌더링 (🪗 아코디언 토글 적용)
+// 8. 상대 카드 리스트 렌더링 (🪗 아코디언 토글)
 function renderOpponentCards(selectedNickname, opponentGroup) {
   const container = document.getElementById("opponentList");
   container.innerHTML = "";
@@ -392,27 +392,22 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
       ${wookHtml}
     `;
 
-    // 🪗 핵심 변경점: 아코디언 위치 이동 & 열기/닫기(토글) 처리
     card.onclick = () => {
       const detailCard = document.getElementById("detailCard");
       const isAlreadySelected = card.classList.contains("selected");
       const isDetailVisible = detailCard.style.display !== "none";
 
-      // 1) 이미 선택된 카드를 다시 누르면 닫음 (토글)
       if (isAlreadySelected && isDetailVisible) {
         detailCard.style.display = "none";
         card.classList.remove("selected");
         return;
       }
 
-      // 2) 선택 스타일 초기화 후 현재 카드에만 부여
       document.querySelectorAll(".op-card").forEach(c => c.classList.remove("selected"));
       card.classList.add("selected");
 
-      // 3) [핵심] 상세 카드(detailCard)를 선택한 카드 바로 밑(after)으로 이동
       card.after(detailCard);
 
-      // 4) 상세 데이터 채우기 및 화면 노출
       renderDetailCard(selectedNickname, opName, stat);
     };
 
@@ -422,7 +417,7 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
   container.style.display = "grid";
 }
 
-// 9. 상대별 상세 분석 렌더링
+// 9. 상대별 상세 분석 렌더링 (⚽ 가로 스크롤 경기 결과 추가)
 function renderDetailCard(userNick, opponentNick, stat) {
   const detailCard = document.getElementById("detailCard");
   const matches = stat.matches;
@@ -432,6 +427,32 @@ function renderDetailCard(userNick, opponentNick, stat) {
   document.getElementById("matchCountBadge").innerText = `총 ${totalMatches}경기`;
   document.getElementById("winRateBadge").innerText = `승률 ${((stat.wins/totalMatches)*100).toFixed(1)}%`;
 
+  // --- 🔥 [신규] 최근 경기 결과 가로 스크롤 렌더링 ---
+  const scrollContainer = document.getElementById("recentMatchesScroll");
+  if (scrollContainer) {
+    scrollContainer.innerHTML = "";
+    
+    // matches 배열을 순회하며 가로 배지 생성 (최신순)
+    matches.forEach((m) => {
+      const res = m.match_result || "무";
+      const gFor = m.goals_for !== undefined ? m.goals_for : 0;
+      const gAgainst = m.goals_against !== undefined ? m.goals_against : 0;
+
+      let typeClass = "draw";
+      if (res === "승") typeClass = "win";
+      else if (res === "패") typeClass = "loss";
+
+      const chip = document.createElement("div");
+      chip.className = `match-chip ${typeClass}`;
+      chip.innerHTML = `
+        <span>${res}</span>
+        <span class="chip-score">${gFor}:${gAgainst}</span>
+      `;
+      scrollContainer.appendChild(chip);
+    });
+  }
+
+  // 연승/연패 계산
   let winS = 0, loseS = 0, unbeatenS = 0;
   for (let m of matches) { if (m.match_result === '승') winS++; else break; }
   for (let m of matches) { if (m.match_result === '패') loseS++; else break; }
