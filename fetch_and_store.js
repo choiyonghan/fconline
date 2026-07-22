@@ -79,7 +79,7 @@ async function fetchNexonApi(url) {
 async function main() {
   console.log("🚀 FC 온라인 데이터 수집 파이프라인 시작...");
 
-  const DELAY_MS = 100;
+  const DELAY_MS = 500;
 
   // -------------------------------------------------------------
   // [보완된 로직] 수집 대상 닉네임 DB 검증 및 자동 등록 (OUID 동시 발급)
