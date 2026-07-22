@@ -2,35 +2,41 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>FC 온라인 상대전적 분석기</title>
   <link rel="stylesheet" href="style.css">
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <div class="app-container">
+
+  <!-- 모바일 뷰포트 컨테이너 (PC에서도 모바일 크기로 중앙 고정) -->
+  <main class="mobile-wrapper">
     <header class="app-header">
-      <h1>⚽ FC 온라인 상대전적 분석기</h1>
+      <h1>⚽ FC 온라인 상대전적</h1>
       <p id="status" class="status-text">사용자 데이터를 불러오는 중...</p>
     </header>
 
     <!-- 유저 선택 버튼 목록 -->
-    <section class="user-selection">
-      <h2>👤 분석할 유저 선택</h2>
+    <section class="card user-selection">
+      <h2 class="section-title">👤 분석할 유저 선택</h2>
       <div id="nicknameButtons" class="nickname-buttons-grid"></div>
     </section>
 
     <!-- 요약 정보 및 날짜 필터 -->
     <section id="summaryInfo" class="summary-section" style="display: none;">
-      <div class="filter-card">
+      <div class="card filter-card">
         <div id="dateRange" class="date-range-text">📅 분석 기간 (KST): -</div>
         <div class="date-filter-group">
-          <input type="date" id="startDate" class="date-input">
-          <span>~</span>
-          <input type="date" id="endDate" class="date-input">
-          <button id="btnSearchDate" class="btn btn-primary">조회</button>
-          <button id="btnResetDate" class="btn btn-secondary">초기화</button>
+          <div class="date-inputs">
+            <input type="date" id="startDate" class="date-input">
+            <span>~</span>
+            <input type="date" id="endDate" class="date-input">
+          </div>
+          <div class="date-buttons">
+            <button id="btnSearchDate" class="btn btn-primary">조회</button>
+            <button id="btnResetDate" class="btn btn-secondary">초기화</button>
+          </div>
         </div>
       </div>
 
@@ -39,7 +45,7 @@
     </section>
 
     <!-- 상대 카드 리스트 및 아코디언 영역 -->
-    <section id="opponentList" class="opponent-grid" style="display: none;"></section>
+    <section id="opponentList" class="opponent-list" style="display: none;"></section>
 
     <!-- 아코디언 이동용 상세 리포트 카드 (초기 숨김) -->
     <div class="detail-card" id="detailCard" style="display: none;">
@@ -54,9 +60,9 @@
         <span class="badge info-badge" id="winRateBadge">승률 -%</span>
       </div>
 
-      <!-- ⚽ 최근 경기 결과 -->
+      <!-- ⚽ 최근 경기 결과 (가로 스크롤) -->
       <div class="recent-matches-container">
-        <div class="recent-matches-title">📜 최근 경기 결과</div>
+        <div class="recent-matches-title">📜 최근 경기 결과 (가로 스크롤)</div>
         <div class="recent-matches-scroll" id="recentMatchesScroll">
           <!-- JS에서 승/무/패 칩들이 가로로 자동 삽입됩니다 -->
         </div>
@@ -89,7 +95,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </main>
 
   <script src="app.js"></script>
 </body>
