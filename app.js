@@ -5,15 +5,13 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const WOOK_NICKNAMES = ["지린성에사는욱구", "욱냥0I"];
 let spidMetaMap = {}; 
 
-// 현재 선택된 유저 정보 및 전체 매치 데이터 상태 관리
 let currentSelectedUser = null;
 let rawMatchDetails = []; 
 
-// 1. UTC 문자열을 KST Date 객체 및 포맷팅 문자열로 변환하는 헬퍼 함수
+// UTC 날짜 문자열을 KST Date 객체로 변환
 function parseToKst(utcDateString) {
   if (!utcDateString) return null;
-  const d = new Date(utcDateString); // 브라우저가 자동 KST 로컬 타임 변환
-  return d;
+  return new Date(utcDateString);
 }
 
 function formatDateToKstString(dateObj) {
@@ -24,7 +22,7 @@ function formatDateToKstString(dateObj) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// 2. 선수 메타데이터 로드
+// 1. 선수 메타데이터 로드
 async function loadSpidMeta() {
   try {
     const res = await fetch("https://open.api.nexon.com/static/fconline/meta/spid.json");
@@ -40,15 +38,15 @@ function getPlayerName(spId) {
   return spidMetaMap[spId] || `선수(ID:${spId})`;
 }
 
-// 3. 유저 로드 및 버튼 생성
+// 2. 유저 로드 및 버튼 생성
 async function fetchUsersAndInitButtons() {
   const statusEl = document.getElementById("status");
   const container = document.getElementById("nicknameButtons");
   await loadSpidMeta();
   
-  // 날짜 필터 이벤트 리스너 등록
-  document.getElementById("btnSearchDate").onclick = applyDateFilter;
-  document.getElementById("btnResetDate").onclick = resetDateFilter;
+  // 날짜 필터 버튼 클릭 이벤트 바인딩
+  document.getElementById("btnSearchDate").addEventListener("click", applyDateFilter);
+  document.getElementById("btnResetDate").addEventListener("click", resetDateFilter);
 
   try {
     const { data: users, error } = await db.from('users').select('nickname, ouid').order('nickname', { ascending: true });
@@ -68,7 +66,7 @@ async function fetchUsersAndInitButtons() {
   }
 }
 
-// 4. 닉네임 클릭 처리
+// 3. 닉네임 클릭 처리 (matches 테이블과 JOIN)
 async function handleNicknameClick(userObj, btnElement) {
   const statusEl = document.getElementById("status");
   currentSelectedUser = userObj;
@@ -81,7 +79,6 @@ async function handleNicknameClick(userObj, btnElement) {
   document.getElementById("detailCard").style.display = "none";
   document.getElementById("overallStatsContainer").innerHTML = "";
   
-  // 날짜 선택 박스 초기화
   document.getElementById("startDate").value = "";
   document.getElementById("endDate").value = "";
   
@@ -89,7 +86,7 @@ async function handleNicknameClick(userObj, btnElement) {
 
   try {
     const { data: matchDetails, error } = await db.from('match_details')
-      .select('*')
+      .select('*, matches(match_date)')
       .eq('ouid', userObj.ouid) 
       .order('id', { ascending: false });
 
@@ -99,9 +96,15 @@ async function handleNicknameClick(userObj, btnElement) {
       return;
     }
 
-    rawMatchDetails = matchDetails; // 원본 데이터 보관
-    processAndRenderMatches(rawMatchDetails); // 필터 없이 전체 데이터로 연산
-    
+    rawMatchDetails = matchDetails.map(item => {
+      const realMatchDate = item.matches ? item.matches.match_date : (item.match_date || item.created_at);
+      return {
+        ...item,
+        real_match_date: realMatchDate
+      };
+    });
+
+    processAndRenderMatches(rawMatchDetails);
     statusEl.innerText = `분석 완료! 상대를 선택해 상세 전적을 확인하세요.`;
   } catch (err) {
     console.error("매치 데이터 로드 에러:", err);
@@ -109,7 +112,7 @@ async function handleNicknameClick(userObj, btnElement) {
   }
 }
 
-// 5. 날짜 필터링 적용 처리 함수
+// 4. 날짜 필터링 적용
 function applyDateFilter() {
   if (!rawMatchDetails || rawMatchDetails.length === 0) return;
 
@@ -125,9 +128,8 @@ function applyDateFilter() {
   const endTarget = endVal ? new Date(`${endVal}T23:59:59+09:00`) : new Date("2099-12-31");
 
   const filteredMatches = rawMatchDetails.filter(detail => {
-    const matchTimeStr = detail.match_date || detail.created_at;
-    if (!matchTimeStr) return false;
-    const kstDate = parseToKst(matchTimeStr);
+    if (!detail.real_match_date) return false;
+    const kstDate = parseToKst(detail.real_match_date);
     return kstDate >= startTarget && kstDate <= endTarget;
   });
 
@@ -144,17 +146,17 @@ function applyDateFilter() {
   processAndRenderMatches(filteredMatches);
 }
 
-// 6. 날짜 필터 초기화 함수
+// 5. 날짜 필터 초기화
 function resetDateFilter() {
   document.getElementById("startDate").value = "";
   document.getElementById("endDate").value = "";
   if (rawMatchDetails && rawMatchDetails.length > 0) {
-    document.getElementById("status").innerText = "전체 기간으로 조회를 다시 실행했습니다.";
+    document.getElementById("status").innerText = "전체 기간으로 다시 조회를 실행했습니다.";
     processAndRenderMatches(rawMatchDetails);
   }
 }
 
-// 7. 매치 데이터 가공 및 화면 렌더링
+// 6. 데이터 연산 및 화면 렌더링
 function processAndRenderMatches(matchList) {
   let minDate = new Date("2099-12-31");
   let maxDate = new Date(0);
@@ -162,7 +164,7 @@ function processAndRenderMatches(matchList) {
   const opponentGroup = {};
   
   matchList.forEach(detail => {
-    const dtStr = detail.match_date || detail.created_at;
+    const dtStr = detail.real_match_date;
     if (dtStr) {
       const kstDate = parseToKst(dtStr);
       if (kstDate < minDate) minDate = kstDate;
@@ -194,23 +196,19 @@ function processAndRenderMatches(matchList) {
     group.matches.push(detail);
   });
 
-  // KST 분석 기간 렌더링
-  const dateStr = minDate <= maxDate 
+  const dateStr = (minDate <= maxDate && minDate.getFullYear() !== 2099)
     ? `${formatDateToKstString(minDate)} ~ ${formatDateToKstString(maxDate)}` 
     : "날짜 정보 없음";
     
   document.getElementById("dateRange").innerText = `📅 분석 기간 (KST): ${dateStr}`;
   document.getElementById("summaryInfo").style.display = "block";
-
-  // 상세 카드는 갱신 시 숨김
   document.getElementById("detailCard").style.display = "none";
 
-  // 종합 전적 및 상대 카드 렌더링
   renderOverallStats(currentSelectedUser.nickname, matchList);
   renderOpponentCards(currentSelectedUser.nickname, opponentGroup);
 }
 
-// 8. 전체 종합 전적 렌더링 함수
+// 7. 전체 종합 전적 렌더링
 function renderOverallStats(userNick, matches) {
   const container = document.getElementById("overallStatsContainer");
   if (!container) return;
@@ -319,7 +317,7 @@ function renderOverallStats(userNick, matches) {
   `;
 }
 
-// 9. 상대 카드 리스트 렌더링
+// 8. 상대 카드 리스트 렌더링
 function renderOpponentCards(selectedNickname, opponentGroup) {
   const container = document.getElementById("opponentList");
   container.innerHTML = "";
@@ -406,7 +404,7 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
   container.style.display = "grid";
 }
 
-// 10. 상대별 상세 분석 렌더링
+// 9. 상대별 상세 분석 렌더링
 function renderDetailCard(userNick, opponentNick, stat) {
   const detailCard = document.getElementById("detailCard");
   const matches = stat.matches;
