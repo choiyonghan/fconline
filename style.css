@@ -1,228 +1,348 @@
+/* ============================================================
+   🎨 기본 테마 및 레이아웃 설정
+   ============================================================ */
 :root {
-  --bg-color: #f8fafc;
+  --primary-color: #2563eb;
+  --primary-hover: #1d4ed8;
+  --bg-color: #f1f5f9;
   --card-bg: #ffffff;
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --primary-light: #eff6ff;
-  --text-dark: #0f172a;
+  --text-main: #0f172a;
   --text-muted: #64748b;
   --border-color: #e2e8f0;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05);
+  --win-color: #16a34a;
+  --lose-color: #dc2626;
+  --draw-color: #475569;
 }
 
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif;
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px 16px 40px;
   background-color: var(--bg-color);
-  color: #334155;
-  -webkit-tap-highlight-color: transparent;
+  color: var(--text-main);
+  padding: 20px 12px;
+  display: flex;
+  justify-content: center;
 }
 
-h1 { 
-  text-align: center; 
-  color: var(--text-dark); 
-  margin: 12px 0 20px; 
-  font-size: 22px; 
-  font-weight: 800;
+.app-container {
+  width: 100%;
+  max-width: 900px;
 }
 
-/* 닉네임 버튼 */
-.nickname-container { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 20px; }
-.btn-nickname {
-  background-color: var(--card-bg); color: var(--text-dark); 
-  border: 1px solid var(--border-color); padding: 8px 16px;
-  border-radius: 20px; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+.app-header {
+  text-align: center;
+  margin-bottom: 20px;
 }
-.btn-nickname.active { background-color: var(--primary); color: white; border-color: var(--primary); }
 
-#status { text-align: center; font-size: 13px; font-weight: 500; margin-bottom: 20px; color: var(--text-muted); }
+.app-header h1 {
+  font-size: 1.5rem;
+  color: var(--text-main);
+}
+
+.status-text {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
 
 /* ============================================================
-   📅 100% 꽉 채운 조회 카드
+   👤 유저 선택 버튼 영역
    ============================================================ */
-.summary-info { 
-  width: 100%;
-  margin-bottom: 20px; 
-}
-
-.summary-card {
-  width: 100%;
+.user-selection {
   background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 14px 16px;
-  box-shadow: var(--shadow-sm);
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.user-selection h2 {
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+
+.nickname-buttons-grid {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.date-range-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
-  color: var(--text-muted);
-}
-
-.date-label {
-  font-weight: 800;
-  color: var(--text-dark);
-}
-
-.date-text {
-  font-weight: 600;
-  word-break: break-all;
-}
-
-.date-filter-box {
-  width: 100%;
-  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.date-inputs-wrapper {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.btn-nickname {
   background: #f8fafc;
-  padding: 6px 8px;
-  border-radius: 10px;
   border: 1px solid var(--border-color);
-}
-
-.date-inputs-wrapper input[type="date"] {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  background: transparent;
-  padding: 0;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--text-dark);
-  font-family: inherit;
-  outline: none;
-  -webkit-appearance: none;
-}
-
-.date-separator {
-  color: #94a3b8;
-  font-weight: 700;
-  font-size: 12px;
-}
-
-.date-buttons-wrapper {
-  display: flex;
-  gap: 6px;
-}
-
-.btn-date-search {
   padding: 8px 14px;
-  background-color: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 700;
+  border-radius: 8px;
   cursor: pointer;
-  white-space: nowrap;
+  font-weight: 600;
+  color: #334155;
+  transition: all 0.2s;
 }
 
-.btn-date-reset {
-  padding: 8px 12px;
-  background-color: #f1f5f9;
-  color: var(--text-muted);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
+.btn-nickname:hover {
+  background: #e2e8f0;
 }
 
-.btn-date-search:active, .btn-date-reset:active {
-  transform: scale(0.96);
+.btn-nickname.active {
+  background: var(--primary-color);
+  color: #fff;
+  border-color: var(--primary-color);
 }
 
 /* ============================================================
-   상대 카드리스트 및 아코디언 상세 카드
+   📅 날짜 필터 영역
    ============================================================ */
-.opponent-list { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; }
+.filter-card {
+  background: var(--card-bg);
+  padding: 14px 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.date-range-text {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+}
+
+.date-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.date-input {
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.btn-primary { background: var(--primary-color); color: white; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-secondary { background: #94a3b8; color: white; }
+.btn-secondary:hover { background: #64748b; }
+
+/* ============================================================
+   🃏 상대 요약 카드 그리드 (아코디언 타겟)
+   ============================================================ */
+.opponent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
 
 .op-card {
-  background: var(--card-bg); 
-  border-radius: 16px; 
-  padding: 16px; 
-  border: 1px solid var(--border-color); 
-  box-shadow: var(--shadow-sm);
-  cursor: pointer; 
-  transition: all 0.2s ease;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
 }
 
-.op-card:active { transform: scale(0.98); }
-.op-card.selected { border: 2px solid var(--primary); box-shadow: var(--shadow-md); }
-.op-card.wook-card { background-color: #fffbeb; border-color: #fde68a; }
+.op-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
 
-.op-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.op-name { font-size: 15px; font-weight: 700; color: var(--text-dark); }
-.op-winrate { font-size: 13px; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 4px 10px; border-radius: 8px; }
+.op-card.selected {
+  border: 2px solid var(--primary-color);
+  background-color: #eff6ff;
+}
 
-.op-card-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; font-size: 12px; margin-bottom: 12px; }
-.op-stat-item { background: #f8fafc; padding: 10px 8px; border-radius: 10px; }
-.op-stat-val { font-size: 13.5px; font-weight: 700; color: var(--text-dark); margin-top: 4px; }
+.op-card.wook-card {
+  border: 1.5px solid #f59e0b;
+}
 
-.wook-badge-box { background: #fef3c7; color: #b45309; padding: 10px; border-radius: 10px; font-size: 12px; font-weight: 700; text-align: center; }
+.op-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
 
-/* 🪗 아코디언 스타일 상세 카드 */
+.op-name { font-weight: 700; font-size: 1.05rem; }
+.op-winrate { font-size: 0.85rem; font-weight: 700; color: var(--primary-color); }
+
+.op-card-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  text-align: center;
+  font-size: 0.8rem;
+}
+
+.op-stat-val { font-weight: 700; margin-top: 4px; }
+.win-text { color: var(--win-color); }
+.lose-text { color: var(--lose-color); }
+
+.wook-badge-box {
+  margin-top: 10px;
+  padding: 8px;
+  background: #fef3c7;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: #78350f;
+  text-align: center;
+}
+
+/* ============================================================
+   🪗 상세 분석 리포트 카드 (아코디언 배치 스타일)
+   ============================================================ */
 .detail-card {
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1.5px solid var(--primary);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-  padding: 16px;
-  margin-top: 4px;
-  grid-column: 1 / -1;
-  animation: slideDown 0.25s ease-out;
+  grid-column: 1 / -1; /* 그리드 전체 너비 차지 */
+  background: var(--card-bg);
+  border: 2px solid var(--primary-color);
+  border-radius: 14px;
+  padding: 18px;
+  margin: 8px 0 16px;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.12);
+  animation: fadeIn 0.25s ease-out;
 }
 
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.detail-title { font-size: 15px; font-weight: 800; color: var(--text-dark); }
-.streak-badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: #fee2e2; color: #b91c1c; }
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.detail-title { font-size: 1.1rem; font-weight: 800; }
+
+.match-summary-badges {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.info-badge { background: #e0e7ff; color: #3730a3; }
+
+.streak-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+}
 .streak-badge.good { background: #dcfce7; color: #15803d; }
 .streak-badge.neutral { background: #f1f5f9; color: #475569; }
 
-.match-summary-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 14px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
-.badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 6px; border-radius: 6px; }
-.info-badge { background: #f1f5f9; color: #334155; }
-.goal-badge { background: #dcfce7; color: #166534; margin-bottom: 4px; }
-.assist-badge { background: #e0f2fe; color: #075985; margin-bottom: 4px; }
-.defense-badge { background: #fef08a; color: #854d0e; margin-bottom: 4px; }
+/* ============================================================
+   ⚽ 최근 경기 결과 가로 스크롤 배지
+   ============================================================ */
+.recent-matches-container {
+  margin: 12px 0 16px;
+  background: #f8fafc;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
 
-.dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.recent-matches-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 8px;
+}
 
-.metric-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
-.metric-title { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 4px; }
-.metric-value { font-size: 15px; font-weight: 800; color: var(--text-dark); word-break: keep-all; }
-.metric-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+.recent-matches-scroll {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+}
 
-.win-text { color: #16a34a; } .lose-text { color: #dc2626; } .draw-text { color: #64748b; }
+.recent-matches-scroll::-webkit-scrollbar { height: 4px; }
+.recent-matches-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.match-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.match-chip .chip-score {
+  font-size: 10px;
+  font-weight: 600;
+  margin-top: 2px;
+  opacity: 0.9;
+}
+
+.match-chip.win {
+  background-color: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.match-chip.draw {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.match-chip.loss {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+/* ============================================================
+   📊 상세 지표 그리드
+   ============================================================ */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.metric-box {
+  background: #f8fafc;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.metric-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
+.metric-value { font-size: 0.95rem; font-weight: 800; margin: 4px 0; }
+.metric-sub { font-size: 0.75rem; color: #64748b; }
