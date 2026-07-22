@@ -252,13 +252,48 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
     const hasWook = isSelectedWook || isOpWook;
     let wookHtml = "";
 
-    if (hasWook) {
-      let myScore = (stat.wins * 5) + (stat.draws * 3) + (stat.losses * 1);
-      let opScore = (stat.losses * 5) + (stat.draws * 3) + (stat.wins * 1);
-      let winnerText = myScore > opScore ? "승리! 🎉" : (myScore < opScore ? "패배..." : "무승부 🤝");
-      
-      wookHtml = `<div class="wook-badge-box">🏆 욱식 점수: ${myScore}점 vs ${opScore}점 (${winnerText})</div>`;
-    }
+if (hasWook) {
+  let wookScore;
+  let normalScore;
+
+  if (isSelectedWook) {
+    // 선택한 유저가 욱인 경우
+    wookScore =
+      (stat.wins * 5) +
+      (stat.draws * 3) +
+      (stat.losses * 1);
+
+    normalScore =
+      (stat.losses * 3) +
+      (stat.draws * 1) +
+      (stat.wins * 0);
+
+  } else {
+    // 상대가 욱인 경우
+    wookScore =
+      (stat.losses * 5) +
+      (stat.draws * 3) +
+      (stat.wins * 1);
+
+    normalScore =
+      (stat.wins * 3) +
+      (stat.draws * 1) +
+      (stat.losses * 0);
+  }
+
+  let winnerText =
+    wookScore > normalScore
+      ? "욱 승리! 🎉"
+      : wookScore < normalScore
+        ? "상대 승리..."
+        : "무승부 🤝";
+
+  wookHtml = `
+    <div class="wook-badge-box">
+      🏆 욱식 점수: 욱 ${wookScore}점 vs 상대 ${normalScore}점 (${winnerText})
+    </div>
+  `;
+}
 
     const card = document.createElement("div");
     card.className = `op-card ${hasWook ? 'wook-card' : ''}`;
