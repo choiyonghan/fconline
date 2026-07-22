@@ -44,7 +44,6 @@ async function fetchUsersAndInitButtons() {
   const container = document.getElementById("nicknameButtons");
   await loadSpidMeta();
   
-  // 날짜 필터 버튼 클릭 이벤트 바인딩
   document.getElementById("btnSearchDate").addEventListener("click", applyDateFilter);
   document.getElementById("btnResetDate").addEventListener("click", resetDateFilter);
 
@@ -60,13 +59,13 @@ async function fetchUsersAndInitButtons() {
       btn.onclick = () => handleNicknameClick(user, btn);
       container.appendChild(btn);
     });
-    statusEl.innerText = `총 ${users.length}명의 유저를 불러왔습니다. 분석할 닉네임을 클릭하세요.`;
+    statusEl.innerText = `총 ${users.length}명의 유저 로드 완료`;
   } catch (err) {
     console.error("유저 로드 에러:", err);
   }
 }
 
-// 3. 닉네임 클릭 처리 (matches 테이블과 JOIN)
+// 3. 닉네임 클릭 처리
 async function handleNicknameClick(userObj, btnElement) {
   const statusEl = document.getElementById("status");
   currentSelectedUser = userObj;
@@ -82,7 +81,7 @@ async function handleNicknameClick(userObj, btnElement) {
   document.getElementById("startDate").value = "";
   document.getElementById("endDate").value = "";
   
-  statusEl.innerText = "데이터 분석 중...";
+  statusEl.innerText = "데이터 계산 중...";
 
   try {
     const { data: matchDetails, error } = await db.from('match_details')
@@ -142,7 +141,7 @@ function applyDateFilter() {
     return;
   }
 
-  statusEl.innerText = `필터 적용 완료 (${filteredMatches.length}경기 검색됨)`;
+  statusEl.innerText = `필터 적용 (${filteredMatches.length}경기)`;
   processAndRenderMatches(filteredMatches);
 }
 
@@ -151,7 +150,7 @@ function resetDateFilter() {
   document.getElementById("startDate").value = "";
   document.getElementById("endDate").value = "";
   if (rawMatchDetails && rawMatchDetails.length > 0) {
-    document.getElementById("status").innerText = "전체 기간으로 다시 조회를 실행했습니다.";
+    document.getElementById("status").innerText = "전체 기간으로 조회를 다시 실행했습니다.";
     processAndRenderMatches(rawMatchDetails);
   }
 }
@@ -282,42 +281,42 @@ function renderOverallStats(userNick, matches) {
   };
 
   container.innerHTML = `
-    <div class="op-card" style="margin-bottom: 25px; border: 2px solid #ffcc00; background-color: #fffdf5; cursor: default;">
+    <div class="card" style="border: 2px solid #f59e0b; background-color: #fffdf5;">
       <div class="op-card-header">
         <div class="op-name">👑 '${userNick}' 종합 전적</div>
-        <div class="op-winrate">총 승률 ${winRate}%</div>
+        <div class="op-winrate">승률 ${winRate}%</div>
       </div>
-      <div class="op-card-stats" style="grid-template-columns: repeat(2, 1fr); gap: 15px;">
-        <div class="op-stat-item">
+      <div class="op-card-stats" style="grid-template-columns: repeat(2, 1fr); gap: 6px;">
+        <div>
           <div style="color:var(--text-muted)">총 ${totalMatches}전</div>
           <div class="op-stat-val"><span class="win-text">${wins}승</span> ${draws}무 <span class="lose-text">${losses}패</span></div>
         </div>
-        <div class="op-stat-item">
+        <div>
           <div style="color:var(--text-muted)">평균 득/실점</div>
           <div class="op-stat-val">⚽ ${avgGoalsFor} / 🛡️ ${avgGoalsAgainst}</div>
         </div>
-        <div class="op-stat-item">
+        <div>
           <div style="color:var(--text-muted)">평균 점유율</div>
           <div class="op-stat-val">${avgPoss}%</div>
         </div>
-        <div class="op-stat-item">
-          <div style="color:var(--text-muted)">유효/총 슈팅 (평균)</div>
+        <div>
+          <div style="color:var(--text-muted)">유효/총 슈팅</div>
           <div class="op-stat-val">${avgEffShoot} / ${avgShoot}</div>
         </div>
       </div>
       
-      <hr style="border:0; border-top:1px dashed #ccc; margin: 15px 0;">
+      <hr style="border:0; border-top:1px dashed #cbd5e1; margin: 10px 0;">
       
-      <div class="op-card-stats" style="grid-template-columns: 1fr; gap: 8px; text-align: left; padding: 0 10px;">
-        <div style="font-size: 0.95rem;">⚽ <span style="color:#666; margin-right:5px;">종합 최다 득점:</span> ${getTopText(topScorer, '골')}</div>
-        <div style="font-size: 0.95rem;">👟 <span style="color:#666; margin-right:5px;">종합 최다 도움:</span> ${getTopText(topAssister, '도움')}</div>
-        <div style="font-size: 0.95rem;">🧤 <span style="color:#666; margin-right:5px;">종합 최다 선방:</span> ${getTopText(topSaver, '선방')}</div>
+      <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem;">
+        <div>⚽ <span style="color:#64748b;">최다 득점:</span> ${getTopText(topScorer, '골')}</div>
+        <div>👟 <span style="color:#64748b;">최다 도움:</span> ${getTopText(topAssister, '도움')}</div>
+        <div>🧤 <span style="color:#64748b;">최다 선방:</span> ${getTopText(topSaver, '선방')}</div>
       </div>
     </div>
   `;
 }
 
-// 8. 상대 카드 리스트 렌더링 (🪗 아코디언 토글)
+// 8. 상대 카드 리스트 렌더링 (아코디언 구조)
 function renderOpponentCards(selectedNickname, opponentGroup) {
   const container = document.getElementById("opponentList");
   container.innerHTML = "";
@@ -376,15 +375,15 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
         <div class="op-winrate">승률 ${winRate}%</div>
       </div>
       <div class="op-card-stats">
-        <div class="op-stat-item">
+        <div>
           <div style="color:var(--text-muted)">전적</div>
           <div class="op-stat-val"><span class="win-text">${stat.wins}승</span> ${stat.draws}무 <span class="lose-text">${stat.losses}패</span></div>
         </div>
-        <div class="op-stat-item">
+        <div>
           <div style="color:var(--text-muted)">평균 점유율</div>
           <div class="op-stat-val">${avgPoss}%</div>
         </div>
-        <div class="op-stat-item">
+        <div>
           <div style="color:var(--text-muted)">유효/총 슈팅</div>
           <div class="op-stat-val">${avgEffShoot} / ${avgShoot}</div>
         </div>
@@ -414,10 +413,10 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
     container.appendChild(card);
   });
   
-  container.style.display = "grid";
+  container.style.display = "flex";
 }
 
-// 9. 상대별 상세 분석 렌더링 (⚽ 가로 스크롤 경기 결과 추가)
+// 9. 상대별 상세 분석 렌더링 (가로 스크롤 실제 데이터 삽입)
 function renderDetailCard(userNick, opponentNick, stat) {
   const detailCard = document.getElementById("detailCard");
   const matches = stat.matches;
@@ -427,12 +426,11 @@ function renderDetailCard(userNick, opponentNick, stat) {
   document.getElementById("matchCountBadge").innerText = `총 ${totalMatches}경기`;
   document.getElementById("winRateBadge").innerText = `승률 ${((stat.wins/totalMatches)*100).toFixed(1)}%`;
 
-  // --- 🔥 [신규] 최근 경기 결과 가로 스크롤 렌더링 ---
+  // --- 🔥 최근 경기 결과 가로 스크롤 렌더링 ---
   const scrollContainer = document.getElementById("recentMatchesScroll");
   if (scrollContainer) {
     scrollContainer.innerHTML = "";
     
-    // matches 배열을 순회하며 가로 배지 생성 (최신순)
     matches.forEach((m) => {
       const res = m.match_result || "무";
       const gFor = m.goals_for !== undefined ? m.goals_for : 0;
@@ -461,7 +459,7 @@ function renderDetailCard(userNick, opponentNick, stat) {
   let streakEl = document.getElementById("streakBadge");
   streakEl.className = "streak-badge"; 
   if (winS > 0) {
-    streakEl.innerText = unbeatenS > winS ? `${winS}연승 중! 🔥 (${unbeatenS}경기 무패)` : `${winS}연승 중! 🔥`;
+    streakEl.innerText = unbeatenS > winS ? `${winS}연승! (${unbeatenS}경기 무패)` : `${winS}연승 중! 🔥`;
     streakEl.classList.add("good");
   } else if (loseS > 0) {
     streakEl.innerText = `${loseS}연패 중... 😭`;
@@ -469,7 +467,7 @@ function renderDetailCard(userNick, opponentNick, stat) {
     streakEl.innerText = `${unbeatenS}경기 무패 중 🛡️`;
     streakEl.classList.add("good");
   } else {
-    streakEl.innerText = "진행 중인 연승/연패 없음";
+    streakEl.innerText = "연승/연패 없음";
     streakEl.classList.add("neutral");
   }
 
@@ -508,17 +506,17 @@ function renderDetailCard(userNick, opponentNick, stat) {
 
   const avgGoalsFor = (stat.goalsFor / totalMatches).toFixed(1);
   const avgGoalsAgainst = (stat.goalsAgainst / totalMatches).toFixed(1);
-  document.getElementById("avgGoals").innerText = `⚽ ${avgGoalsFor}골 / 🛡️ ${avgGoalsAgainst}실점`;
-  document.getElementById("totalGoalsSub").innerText = `총 ${stat.goalsFor}득점 / 총 ${stat.goalsAgainst}실점`;
+  document.getElementById("avgGoals").innerText = `⚽ ${avgGoalsFor} / 🛡️ ${avgGoalsAgainst}`;
+  document.getElementById("totalGoalsSub").innerText = `총 ${stat.goalsFor}득 / ${stat.goalsAgainst}실`;
 
   const setMetric = (nameId, detailId, topObj, unit) => {
     if (topObj.id && appMap[topObj.id]) {
       const appearances = appMap[topObj.id]; 
       document.getElementById(nameId).innerText = getPlayerName(topObj.id);
-      document.getElementById(detailId).innerText = `${appearances}경기 ${topObj.count}${unit} (평균 ${(topObj.count / appearances).toFixed(2)}${unit})`;
+      document.getElementById(detailId).innerText = `${appearances}경기 ${topObj.count}${unit} (평균 ${(topObj.count / appearances).toFixed(2)})`;
     } else {
       document.getElementById(nameId).innerText = "기록 없음";
-      document.getElementById(detailId).innerText = "(직접 갱신한 전적 필요)";
+      document.getElementById(detailId).innerText = "-";
     }
   };
 
