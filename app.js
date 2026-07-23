@@ -8,6 +8,7 @@ let spidMetaMap = {};
 let currentSelectedUser = null;
 let rawMatchDetails = []; 
 
+// UTC 날짜 문자열을 KST Date 객체로 변환
 function parseToKst(utcDateString) {
   if (!utcDateString) return null;
   return new Date(utcDateString);
@@ -21,6 +22,7 @@ function formatDateToKstString(dateObj) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// 1. 선수 메타데이터 로드
 async function loadSpidMeta() {
   try {
     const res = await fetch("https://open.api.nexon.com/static/fconline/meta/spid.json");
@@ -36,6 +38,7 @@ function getPlayerName(spId) {
   return spidMetaMap[spId] || `선수(ID:${spId})`;
 }
 
+// 2. 유저 로드 및 버튼 생성
 async function fetchUsersAndInitButtons() {
   const statusEl = document.getElementById("status");
   const container = document.getElementById("nicknameButtons");
@@ -62,6 +65,7 @@ async function fetchUsersAndInitButtons() {
   }
 }
 
+// 3. 닉네임 클릭 처리
 async function handleNicknameClick(userObj, btnElement) {
   const statusEl = document.getElementById("status");
   currentSelectedUser = userObj;
@@ -69,6 +73,7 @@ async function handleNicknameClick(userObj, btnElement) {
   document.querySelectorAll(".btn-nickname").forEach(b => b.classList.remove("active"));
   btnElement.classList.add("active");
   
+  // 아코디언 DOM 보존: detailCard가 opponentList 안에 위치해 삭제되지 않도록 외부로 이동
   const detailCard = document.getElementById("detailCard");
   const opponentList = document.getElementById("opponentList");
   if (detailCard && opponentList && opponentList.contains(detailCard)) {
@@ -106,13 +111,14 @@ async function handleNicknameClick(userObj, btnElement) {
     });
 
     processAndRenderMatches(rawMatchDetails);
-    statusEl.innerText = `분석 완료! 상대를 선택하세요.`;
+    statusEl.innerText = `분석 완료! 상대를 선택해 상세 전적을 확인하세요.`;
   } catch (err) {
     console.error("매치 데이터 로드 에러:", err);
     statusEl.innerText = "오류가 발생했습니다.";
   }
 }
 
+// 4. 날짜 필터링 적용
 function applyDateFilter() {
   if (!rawMatchDetails || rawMatchDetails.length === 0) return;
 
@@ -146,15 +152,17 @@ function applyDateFilter() {
   processAndRenderMatches(filteredMatches);
 }
 
+// 5. 날짜 필터 초기화
 function resetDateFilter() {
   document.getElementById("startDate").value = "";
   document.getElementById("endDate").value = "";
   if (rawMatchDetails && rawMatchDetails.length > 0) {
-    document.getElementById("status").innerText = "전체 기간으로 조회합니다.";
+    document.getElementById("status").innerText = "전체 기간으로 조회를 다시 실행했습니다.";
     processAndRenderMatches(rawMatchDetails);
   }
 }
 
+// 6. 데이터 연산 및 화면 렌더링
 function processAndRenderMatches(matchList) {
   let minDate = new Date("2099-12-31");
   let maxDate = new Date(0);
@@ -206,6 +214,7 @@ function processAndRenderMatches(matchList) {
   renderOpponentCards(currentSelectedUser.nickname, opponentGroup);
 }
 
+// 7. 전체 종합 전적 렌더링
 function renderOverallStats(userNick, matches) {
   const container = document.getElementById("overallStatsContainer");
   if (!container) return;
@@ -256,21 +265,65 @@ function renderOverallStats(userNick, matches) {
   const winRate = ((wins / totalMatches) * 100).toFixed(1);
   const avgGoalsFor = (goalsFor / totalMatches).toFixed(1);
   const avgGoalsAgainst = (goalsAgainst / totalMatches).toFixed(1);
+  const avgPoss = (posSum / totalMatches).toFixed(1);
+  const avgShoot = (shootSum / totalMatches).toFixed(1);
+  const avgEffShoot = (effShootSum / totalMatches).toFixed(1);
+
+  const getTopPlayer = (map) => {
+    let topId = null, maxVal = 0;
+    for (const id in map) { if (map[id] > maxVal) { maxVal = map[id]; topId = id; } }
+    return { id: topId, count: maxVal };
+  };
+
+  const topScorer = getTopPlayer(goalMap);
+  const topAssister = getTopPlayer(assistMap);
+  const topSaver = getTopPlayer(saveMap);
+
+  const getTopText = (topObj, unit) => {
+    if (!topObj.id || !appMap[topObj.id]) return `<span style="color:#888;">기록 없음</span>`;
+    const apps = appMap[topObj.id];
+    const name = getPlayerName(topObj.id);
+    const avg = (topObj.count / apps).toFixed(2);
+    return `<strong>${name}</strong> (${apps}경기 ${topObj.count}${unit} / 경기당 ${avg}${unit})`;
+  };
 
   container.innerHTML = `
-    <div style="background:#fff; border-radius:10px; padding:12px; border:1px solid #cbd5e1;">
-      <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-        <strong style="font-size:0.9rem;">👑 '${userNick}' 종합 전적</strong>
-        <span style="color:var(--primary-color); font-weight:bold; font-size:0.9rem;">승률 ${winRate}%</span>
+    <div class="card" style="border: 2px solid #f59e0b; background-color: #fffdf5;">
+      <div class="op-card-header">
+        <div class="op-name">👑 '${userNick}' 종합 전적</div>
+        <div class="op-winrate">승률 ${winRate}%</div>
       </div>
-      <div style="font-size:0.8rem; color:#475569;">
-        ${totalMatches}전 <span class="win-text">${wins}승</span> ${draws}무 <span class="lose-text">${losses}패</span> 
-        (⚽ 평균 ${avgGoalsFor}득 / 🛡️ ${avgGoalsAgainst}실)
+      <div class="op-card-stats" style="grid-template-columns: repeat(2, 1fr); gap: 6px;">
+        <div>
+          <div style="color:var(--text-muted)">총 ${totalMatches}전</div>
+          <div class="op-stat-val"><span class="win-text">${wins}승</span> ${draws}무 <span class="lose-text">${losses}패</span></div>
+        </div>
+        <div>
+          <div style="color:var(--text-muted)">평균 득/실점</div>
+          <div class="op-stat-val">⚽ ${avgGoalsFor} / 🛡️ ${avgGoalsAgainst}</div>
+        </div>
+        <div>
+          <div style="color:var(--text-muted)">평균 점유율</div>
+          <div class="op-stat-val">${avgPoss}%</div>
+        </div>
+        <div>
+          <div style="color:var(--text-muted)">유효/총 슈팅</div>
+          <div class="op-stat-val">${avgEffShoot} / ${avgShoot}</div>
+        </div>
+      </div>
+      
+      <hr style="border:0; border-top:1px dashed #cbd5e1; margin: 10px 0;">
+      
+      <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem;">
+        <div>⚽ <span style="color:#64748b;">최다 득점:</span> ${getTopText(topScorer, '골')}</div>
+        <div>👟 <span style="color:#64748b;">최다 도움:</span> ${getTopText(topAssister, '도움')}</div>
+        <div>🧤 <span style="color:#64748b;">최다 선방:</span> ${getTopText(topSaver, '선방')}</div>
       </div>
     </div>
   `;
 }
 
+// 8. 상대 카드 리스트 렌더링
 function renderOpponentCards(selectedNickname, opponentGroup) {
   const container = document.getElementById("opponentList");
   container.innerHTML = "";
@@ -284,9 +337,44 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
     const winRate = ((stat.wins/total)*100).toFixed(1);
     const avgPoss = (stat.posSum / total).toFixed(1);
     const avgShoot = (stat.shootSum / total).toFixed(1);
+    const avgEffShoot = (stat.effShootSum / total).toFixed(1);
+
+    const isOpWook = WOOK_NICKNAMES.includes(opName);
+    const hasWook = isSelectedWook || isOpWook;
+    let wookHtml = "";
+
+    if (hasWook) {
+      let wookScore, normalScore;
+      let wookName = "", normalName = "";
+
+      if (isSelectedWook) {
+        wookName = selectedNickname;
+        normalName = opName;
+        wookScore = (stat.wins * 5) + (stat.draws * 3) + (stat.losses * 1);
+        normalScore = (stat.losses * 3) + (stat.draws * 1);
+      } else {
+        wookName = opName;
+        normalName = selectedNickname;
+        wookScore = (stat.losses * 5) + (stat.draws * 3) + (stat.wins * 1);
+        normalScore = (stat.wins * 3) + (stat.draws * 1);
+      }
+
+      let winnerText = wookScore > normalScore
+        ? `${wookName} 승리! 🎉`
+        : wookScore < normalScore
+          ? `${normalName} 승리! 🎉`
+          : "무승부 🤝";
+
+      wookHtml = `
+        <div class="wook-badge-box">
+          🏆 욱식 점수: ${wookName} ${wookScore}점 vs ${normalName} ${normalScore}점<br>
+          <strong>(${winnerText})</strong>
+        </div>
+      `;
+    }
 
     const card = document.createElement("div");
-    card.className = 'op-card';
+    card.className = `op-card ${hasWook ? 'wook-card' : ''}`;
     
     card.innerHTML = `
       <div class="op-card-header">
@@ -296,17 +384,18 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
       <div class="op-card-stats">
         <div>
           <div style="color:var(--text-muted)">전적</div>
-          <div><span class="win-text">${stat.wins}승</span> ${stat.draws}무 <span class="lose-text">${stat.losses}패</span></div>
+          <div class="op-stat-val"><span class="win-text">${stat.wins}승</span> ${stat.draws}무 <span class="lose-text">${stat.losses}패</span></div>
         </div>
         <div>
-          <div style="color:var(--text-muted)">점유율</div>
-          <div>${avgPoss}%</div>
+          <div style="color:var(--text-muted)">평균 점유율</div>
+          <div class="op-stat-val">${avgPoss}%</div>
         </div>
         <div>
-          <div style="color:var(--text-muted)">슈팅</div>
-          <div>${avgShoot}개</div>
+          <div style="color:var(--text-muted)">유효/총 슈팅</div>
+          <div class="op-stat-val">${avgEffShoot} / ${avgShoot}</div>
         </div>
       </div>
+      ${wookHtml}
     `;
 
     card.onclick = () => {
@@ -334,13 +423,19 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
   container.style.display = "flex";
 }
 
-async function renderDetailCard(userNick, opponentNick, stat) {
+// 9. 상대별 상세 분석 렌더링
+function renderDetailCard(userNick, opponentNick, stat) {
   const detailCard = document.getElementById("detailCard");
 
+  // 💡 [실제 match_date 기준 최신순 정렬 보장]
   const matches = [...stat.matches].sort((a, b) => {
     const dateStrA = a.matches ? a.matches.match_date : (a.real_match_date || a.match_date);
     const dateStrB = b.matches ? b.matches.match_date : (b.real_match_date || b.match_date);
-    return new Date(dateStrB || 0) - new Date(dateStrA || 0);
+
+    const timeA = new Date(dateStrA || 0).getTime();
+    const timeB = new Date(dateStrB || 0).getTime();
+
+    return timeB - timeA; // 최신 경기가 0번 인덱스로 오도록 정렬
   });
 
   const totalMatches = matches.length;
@@ -349,7 +444,7 @@ async function renderDetailCard(userNick, opponentNick, stat) {
   document.getElementById("matchCountBadge").innerText = `총 ${totalMatches}경기`;
   document.getElementById("winRateBadge").innerText = `승률 ${((stat.wins/totalMatches)*100).toFixed(1)}%`;
 
-  // 최근 경기 칩
+  // --- 최근 경기 칩 렌더링 ---
   const matchesContainer = document.getElementById("recentMatchesContainer");
   matchesContainer.innerHTML = "";
 
@@ -364,57 +459,70 @@ async function renderDetailCard(userNick, opponentNick, stat) {
     matchesContainer.appendChild(chip);
   });
 
-  // 💡 DB의 user_opponent_streaks 데이터 기반 모바일 대시보드 업데이트
-  try {
-    const { data: streakData } = await db
-      .from('user_opponent_streaks')
-      .select('*')
-      .eq('ouid', currentSelectedUser.ouid)
-      .eq('opponent_nick', opponentNick)
-      .maybeSingle();
+  // --- 최신순 연속 기록 계산 ---
+  let winS = 0;      // 연승
+  let loseS = 0;     // 연패
+  let winlessS = 0;  // 무승 (승리가 없음)
+  let unbeatenS = 0; // 무패 (패배가 없음)
 
-    if (streakData) {
-      const badgeTexts = [];
-      let badgeColorClass = "neutral";
-
-      if (streakData.current_win_streak >= 2) {
-        badgeTexts.push(`${streakData.current_win_streak}연승 중! 🔥`);
-        badgeColorClass = "good";
-      }
-      if (streakData.current_lose_streak >= 2) {
-        badgeTexts.push(`${streakData.current_lose_streak}연패 중... 😭`);
-        badgeColorClass = "bad";
-      }
-      if (streakData.current_winless_streak >= 2 && streakData.current_winless_streak !== streakData.current_lose_streak) {
-        badgeTexts.push(`${streakData.current_winless_streak}경기 연속 무승 중 ⚠️`);
-        if (badgeColorClass === "neutral") badgeColorClass = "warning";
-      }
-      if (streakData.current_unbeaten_streak >= 2 && streakData.current_unbeaten_streak !== streakData.current_win_streak) {
-        badgeTexts.push(`${streakData.current_unbeaten_streak}경기 연속 무패 중 🛡️`);
-        if (badgeColorClass === "neutral") badgeColorClass = "good";
-      }
-
-      const streakEl = document.getElementById("streakBadge");
-      streakEl.className = "streak-badge";
-      if (badgeTexts.length > 0) {
-        streakEl.innerText = badgeTexts.join(" / ");
-        streakEl.classList.add(badgeColorClass);
-      } else {
-        streakEl.innerText = "진행 중인 특이 기록 없음";
-        streakEl.classList.add("neutral");
-      }
-
-      // 🏆 2x2 대시보드 수치 대입
-      document.getElementById("maxWinVal").innerText = `${streakData.max_win_streak}연승`;
-      document.getElementById("maxLoseVal").innerText = `${streakData.max_lose_streak}연패`;
-      document.getElementById("maxWinlessVal").innerText = `${streakData.max_winless_streak}경기`;
-      document.getElementById("maxUnbeatenVal").innerText = `${streakData.max_unbeaten_streak}경기`;
-    }
-  } catch (err) {
-    console.error("연속/최다 기록 불러오기 에러:", err);
+  for (let m of matches) { 
+    if (m.match_result === '승') winS++; 
+    else break; 
   }
 
-  // 선수 스탯 계산
+  for (let m of matches) { 
+    if (m.match_result === '패') loseS++; 
+    else break; 
+  }
+
+  for (let m of matches) { 
+    if (m.match_result !== '승') winlessS++; 
+    else break; 
+  }
+
+  for (let m of matches) { 
+    if (m.match_result !== '패') unbeatenS++; 
+    else break; 
+  }
+
+  let streakEl = document.getElementById("streakBadge");
+  streakEl.className = "streak-badge"; 
+
+  // 💡 [다중 기록 출력 조합 로직]
+  const badgeTexts = [];
+  let badgeColorClass = "neutral";
+
+  if (winS >= 2) {
+    badgeTexts.push(`${winS}연승 중! 🔥`);
+    badgeColorClass = "good";
+  }
+
+  if (loseS >= 2) {
+    badgeTexts.push(`${loseS}연패 중... 😭`);
+    badgeColorClass = "bad";
+  }
+
+  // Pure 연패가 아닐 때만 연속 무승 표기 (중복 문구 방지)
+  if (winlessS >= 2 && winlessS !== loseS) {
+    badgeTexts.push(`${winlessS}경기 연속 무승 중 ⚠️`);
+    if (badgeColorClass === "neutral") badgeColorClass = "warning";
+  }
+
+  // Pure 연승이 아닐 때만 연속 무패 표기 (중복 문구 방지)
+  if (unbeatenS >= 2 && unbeatenS !== winS) {
+    badgeTexts.push(`${unbeatenS}경기 연속 무패 중 🛡️`);
+    if (badgeColorClass === "neutral") badgeColorClass = "good";
+  }
+
+  if (badgeTexts.length > 0) {
+    streakEl.innerText = badgeTexts.join(" / ");
+    streakEl.classList.add(badgeColorClass);
+  } else {
+    streakEl.innerText = "연승/연패 없음";
+    streakEl.classList.add("neutral");
+  }
+
+  // --- 선수 통계 계산 ---
   const goalMap = {}, assistMap = {}, saveMap = {}, appMap = {};
 
   matches.forEach(m => {
