@@ -459,36 +459,20 @@ function renderDetailCard(userNick, opponentNick, stat) {
     matchesContainer.appendChild(chip);
   });
 
-  // --- 최신순 연속 기록 계산 ---
+  // --- 1) 최신순 연속 기록 계산 (현재 진행 중인 연속 기록) ---
   let winS = 0;      // 연승
   let loseS = 0;     // 연패
   let winlessS = 0;  // 무승 (승리가 없음)
   let unbeatenS = 0; // 무패 (패배가 없음)
 
-  for (let m of matches) { 
-    if (m.match_result === '승') winS++; 
-    else break; 
-  }
-
-  for (let m of matches) { 
-    if (m.match_result === '패') loseS++; 
-    else break; 
-  }
-
-  for (let m of matches) { 
-    if (m.match_result !== '승') winlessS++; 
-    else break; 
-  }
-
-  for (let m of matches) { 
-    if (m.match_result !== '패') unbeatenS++; 
-    else break; 
-  }
+  for (let m of matches) { if (m.match_result === '승') winS++; else break; }
+  for (let m of matches) { if (m.match_result === '패') loseS++; else break; }
+  for (let m of matches) { if (m.match_result !== '승') winlessS++; else break; }
+  for (let m of matches) { if (m.match_result !== '패') unbeatenS++; else break; }
 
   let streakEl = document.getElementById("streakBadge");
   streakEl.className = "streak-badge"; 
 
-  // 💡 [다중 기록 출력 조합 로직]
   const badgeTexts = [];
   let badgeColorClass = "neutral";
 
@@ -502,13 +486,11 @@ function renderDetailCard(userNick, opponentNick, stat) {
     badgeColorClass = "bad";
   }
 
-  // Pure 연패가 아닐 때만 연속 무승 표기 (중복 문구 방지)
   if (winlessS >= 2 && winlessS !== loseS) {
     badgeTexts.push(`${winlessS}경기 연속 무승 중 ⚠️`);
     if (badgeColorClass === "neutral") badgeColorClass = "warning";
   }
 
-  // Pure 연승이 아닐 때만 연속 무패 표기 (중복 문구 방지)
   if (unbeatenS >= 2 && unbeatenS !== winS) {
     badgeTexts.push(`${unbeatenS}경기 연속 무패 중 🛡️`);
     if (badgeColorClass === "neutral") badgeColorClass = "good";
@@ -520,6 +502,39 @@ function renderDetailCard(userNick, opponentNick, stat) {
   } else {
     streakEl.innerText = "연승/연패 없음";
     streakEl.classList.add("neutral");
+  }
+
+  // --- 2) 🔥 [신규 추가] 통산 최다 연승 / 최다 연패 연산 ---
+  const chronologicalMatches = [...matches].reverse(); // 과거 -> 최신순 변환
+
+  let maxWinStreak = 0;
+  let maxLoseStreak = 0;
+  let currentWinStreak = 0;
+  let currentLoseStreak = 0;
+
+  chronologicalMatches.forEach(m => {
+    if (m.match_result === "승") {
+      currentWinStreak++;
+      currentLoseStreak = 0;
+      if (currentWinStreak > maxWinStreak) maxWinStreak = currentWinStreak;
+    } else if (m.match_result === "패") {
+      currentLoseStreak++;
+      currentWinStreak = 0;
+      if (currentLoseStreak > maxLoseStreak) maxLoseStreak = currentLoseStreak;
+    } else {
+      currentWinStreak = 0;
+      currentLoseStreak = 0;
+    }
+  });
+
+  const maxStreakValEl = document.getElementById("maxStreakValue");
+  const maxStreakSubEl = document.getElementById("maxStreakSub");
+
+  if (maxStreakValEl) {
+    maxStreakValEl.innerHTML = `<span class="win-text">${maxWinStreak}연승</span> / <span class="lose-text">${maxLoseStreak}연패</span>`;
+  }
+  if (maxStreakSubEl) {
+    maxStreakSubEl.innerText = `통산 최고 기록`;
   }
 
   // --- 선수 통계 계산 ---
