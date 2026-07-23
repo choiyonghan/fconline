@@ -1,10 +1,10 @@
 :root {
   --primary-color: #2563eb;
   --bg-color: #f1f5f9;
-  --card-bg: #ffffff;
+  --card-bg: rgba(255, 255, 255, 0.88); /* 카드 투명도 조정으로 배경 투과 */
   --text-main: #0f172a;
   --text-muted: #64748b;
-  --border-color: #e2e8f0;
+  --border-color: rgba(226, 232, 240, 0.8);
 }
 
 * {
@@ -15,11 +15,31 @@
 }
 
 body {
-  background-color: var(--bg-color);
+  position: relative;
+  background-color: #e2e8f0;
   color: var(--text-main);
   padding: 12px;
   max-width: 480px; /* 모바일 중심 레이아웃 */
   margin: 0 auto;
+  min-height: 100vh;
+}
+
+/* 🖼️ 배경 이미지 오버레이 (화면 고정 & 가독성을 위한 은은한 투명도) */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url('./KakaoTalk_20260723_122725700.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.18; /* 가독성을 저해하지 않도록 은은하게 배치 */
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(1px); /* 자연스럽게 융합되도록 미세한 블러 */
 }
 
 .app-container {
@@ -31,12 +51,14 @@ body {
 .app-header h1 {
   font-size: 1.3rem;
   font-weight: 800;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
 }
 
 .status-text {
   font-size: 0.8rem;
   color: var(--text-muted);
   margin-top: 2px;
+  font-weight: 600;
 }
 
 /* 닉네임 버튼 패널 */
@@ -54,8 +76,10 @@ body {
   font-size: 0.82rem;
   border-radius: 20px;
   border: 1px solid var(--border-color);
-  background: white;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
   cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .btn-nickname.active {
@@ -65,14 +89,17 @@ body {
   font-weight: bold;
 }
 
-/* 필터 입력창 모바일 가로 정렬 */
+/* 필터 카드 (글래스 스타일 적용) */
 .filter-card {
-  background: white;
+  background: var(--card-bg);
+  backdrop-filter: blur(8px);
   padding: 10px;
   border-radius: 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .date-inputs {
@@ -87,6 +114,7 @@ body {
   font-size: 0.8rem;
   border: 1px solid var(--border-color);
   border-radius: 6px;
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .filter-actions {
@@ -114,11 +142,18 @@ body {
 }
 
 .op-card {
-  background: white;
+  background: var(--card-bg);
+  backdrop-filter: blur(8px);
   border-radius: 10px;
   padding: 12px;
   border: 1px solid var(--border-color);
   cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+  transition: transform 0.15s ease;
+}
+
+.op-card:active {
+  transform: scale(0.98);
 }
 
 .op-card.selected {
@@ -139,7 +174,7 @@ body {
   grid-template-columns: repeat(3, 1fr);
   font-size: 0.75rem;
   text-align: center;
-  background: #f8fafc;
+  background: rgba(248, 250, 252, 0.85);
   padding: 8px;
   border-radius: 6px;
 }
@@ -147,17 +182,18 @@ body {
 .win-text { color: #ef4444; font-weight: bold; }
 .lose-text { color: #3b82f6; font-weight: bold; }
 
-/* 📱 모바일 연속/최다 기록 디자인 */
+/* 상세 전적 카드 */
 .detail-card {
-  background: white;
+  background: rgba(255, 255, 255, 0.93);
+  backdrop-filter: blur(12px);
   border-radius: 12px;
   padding: 14px;
   border: 1px solid #cbd5e1;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
 }
 
 .streak-section {
-  background: #f8fafc;
+  background: rgba(248, 250, 252, 0.85);
   border-radius: 10px;
   padding: 10px;
   margin: 12px 0;
@@ -193,7 +229,7 @@ body {
 
 /* 2x2 대시보드 카드 */
 .max-streak-container {
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.95);
   border: 1px solid #fcd34d;
   border-radius: 8px;
   padding: 10px;
@@ -220,10 +256,10 @@ body {
   border-left: 3px solid #cbd5e1;
 }
 
-.max-card.win { border-left-color: #ef4444; background: #fff5f5; }
-.max-card.lose { border-left-color: #3b82f6; background: #f0f7ff; }
-.max-card.winless { border-left-color: #f59e0b; background: #fffdf0; }
-.max-card.unbeaten { border-left-color: #10b981; background: #f0fdf4; }
+.max-card.win { border-left-color: #ef4444; background: rgba(255, 245, 245, 0.9); }
+.max-card.lose { border-left-color: #3b82f6; background: rgba(240, 247, 255, 0.9); }
+.max-card.winless { border-left-color: #f59e0b; background: rgba(255, 253, 240, 0.9); }
+.max-card.unbeaten { border-left-color: #10b981; background: rgba(240, 253, 244, 0.9); }
 
 .max-label { font-size: 0.7rem; color: #64748b; font-weight: 600; }
 .max-val { font-size: 0.95rem; font-weight: 800; color: #0f172a; margin-top: 2px; }
