@@ -73,9 +73,17 @@ async function handleNicknameClick(userObj, btnElement) {
   document.querySelectorAll(".btn-nickname").forEach(b => b.classList.remove("active"));
   btnElement.classList.add("active");
   
-  document.getElementById("opponentList").style.display = "none";
+  // 💡 [아코디언 버그 수정] detailCard가 opponentList 내부에 붙어있을 경우
+  // innerHTML = "" 으로 같이 삭제되지 않도록 opponentList 뒤로 안전하게 이동시킴
+  const detailCard = document.getElementById("detailCard");
+  const opponentList = document.getElementById("opponentList");
+  if (detailCard && opponentList && opponentList.contains(detailCard)) {
+    opponentList.after(detailCard);
+  }
+
+  opponentList.style.display = "none";
   document.getElementById("summaryInfo").style.display = "none";
-  document.getElementById("detailCard").style.display = "none";
+  if (detailCard) detailCard.style.display = "none";
   document.getElementById("overallStatsContainer").innerHTML = "";
   
   document.getElementById("startDate").value = "";
@@ -405,6 +413,7 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
       document.querySelectorAll(".op-card").forEach(c => c.classList.remove("selected"));
       card.classList.add("selected");
 
+      // 선택한 상대 카드 바로 밑으로 detailCard 이동
       card.after(detailCard);
 
       renderDetailCard(selectedNickname, opName, stat);
@@ -441,31 +450,31 @@ function renderDetailCard(userNick, opponentNick, stat) {
     matchesContainer.appendChild(chip);
   });
 
-  // --- 정확한 최신순 연속 기록 계산 (개선된 부분) ---
-  let winS = 0;      // 연승 (최근 연속 승리 수)
-  let loseS = 0;     // 연패 (최근 연속 패배 수)
-  let winlessS = 0;  // 무승 (최근 승리가 없었던 경기 수 = 무 또는 패 누적)
-  let unbeatenS = 0; // 무패 (최근 패배가 없었던 경기 수 = 승 또는 무 누적)
+  // --- 정확한 최신순 연속 기록 계산 (승리 없음 = 무승 누적) ---
+  let winS = 0;      // 연승
+  let loseS = 0;     // 연패
+  let winlessS = 0;  // 무승 (최근 승리가 없었던 경기 수 = 무 또는 패 연속)
+  let unbeatenS = 0; // 무패 (최근 패배가 없었던 경기 수 = 승 또는 무 연속)
 
-  // 1) 연승: '승'이 아닌 경기(무, 패)를 만나는 순간 멈춤
+  // 1) 연승: '승'이 아닌 경기를 만나는 순간 멈춤
   for (let m of matches) { 
     if (m.match_result === '승') winS++; 
     else break; 
   }
 
-  // 2) 연패: '패'가 아닌 경기(승, 무)를 만나는 순간 멈춤
+  // 2) 연패: '패'가 아닌 경기를 만나는 순간 멈춤
   for (let m of matches) { 
     if (m.match_result === '패') loseS++; 
     else break; 
   }
 
-  // 3) 무승 (승리가 없음): '승'을 만나는 순간 멈춤 -> 무, 패가 계속되면 다 더함!
+  // 3) 무승 (승리 없음): '승'을 만나는 순간 멈춤
   for (let m of matches) { 
     if (m.match_result !== '승') winlessS++; 
     else break; 
   }
 
-  // 4) 무패 (패배가 없음): '패'를 만나는 순간 멈춤 -> 승, 무가 계속되면 다 더함!
+  // 4) 무패 (패배 없음): '패'를 만나는 순간 멈춤
   for (let m of matches) { 
     if (m.match_result !== '패') unbeatenS++; 
     else break; 
@@ -474,7 +483,7 @@ function renderDetailCard(userNick, opponentNick, stat) {
   let streakEl = document.getElementById("streakBadge");
   streakEl.className = "streak-badge"; 
 
-  // 조건 적용 (연승 -> 연패 -> 무승 -> 무패 순)
+  // 조건 적용
   if (winS >= 2) {
     streakEl.innerText = `${winS}연승 중! 🔥`;
     streakEl.classList.add("good");
