@@ -14,6 +14,9 @@ const TARGET_NICKNAMES = [
   '프란체스co토티'
 ];
 
+// 💡 [추가] 2026년 7월 13일 이전 데이터 필터링 기준선 (KST)
+const CUTOFF_DATE = new Date('2026-07-13T00:00:00+09:00');
+
 // 2. 환경 변수 및 설정
 const NEXON_API_KEYS = [
   process.env.NEXON_API_KEY,
@@ -82,7 +85,7 @@ async function main() {
   const DELAY_MS = 500;
 
   // -------------------------------------------------------------
-  // [보완된 로직] 수집 대상 닉네임 DB 검증 및 자동 등록 (OUID 동시 발급)
+  // 수집 대상 닉네임 DB 검증 및 자동 등록 (OUID 동시 발급)
   // -------------------------------------------------------------
   console.log("\n📋 수집 대상 닉네임 DB 검증 및 자동 등록 중...");
   for (const nickname of TARGET_NICKNAMES) {
@@ -95,7 +98,6 @@ async function main() {
     if (!existingUser) {
       console.log(`  └ 🔍 [${nickname}] DB에 없어 OUID를 먼저 조회합니다...`);
       
-      // OUID 가져오기
       const userData = await fetchNexonApi(`https://open.api.nexon.com/fconline/v1/id?nickname=${encodeURIComponent(nickname)}`);
       await sleep(DELAY_MS);
 
@@ -104,7 +106,6 @@ async function main() {
         continue;
       }
 
-      // OUID와 함께 Insert (Not Null 제약조건 위반 방지)
       const { error: insertError } = await supabase
         .from('users')
         .insert({ 
@@ -141,7 +142,6 @@ async function main() {
     try {
       console.log(`\n🔍 [${currentNickname}] 데이터 수집 시작`);
 
-      // OUID 재확인 (혹시 등록되지 않은 기존 데이터가 있을 경우 대비)
       if (!currentOuid) {
         console.log(`  └ OUID 재조회 중...`);
         const userData = await fetchNexonApi(`https://open.api.nexon.com/fconline/v1/id?nickname=${encodeURIComponent(currentNickname)}`);
@@ -161,7 +161,7 @@ async function main() {
         await sleep(DELAY_MS);
       }
 
-      // 2. 최근 매치 목록 조회 (매치타입 40, 최근 100경기)
+      // 최근 매치 목록 조회 (매치타입 40, 최근 100경기)
       const matchType = 40;
       console.log(`  └ 최근 100경기 목록(매치타입 ${matchType}) 요청 중...`);
       const matchIds = await fetchNexonApi(`https://open.api.nexon.com/fconline/v1/user/match?ouid=${currentOuid}&matchtype=${matchType}&offset=0&limit=100`);
@@ -175,12 +175,13 @@ async function main() {
 
       let savedCount = 0;
       let skippedCount = 0;
+      let dateFilteredCount = 0; // 💡 [추가] 날짜 제한으로 스킵된 건수
 
-      // 3. 매치 상세 조회 및 저장
+      // 매치 상세 조회 및 저장
       for (let i = 0; i < matchIds.length; i++) {
         const matchId = matchIds[i];
 
-        // 💡 [수정됨] matches가 아닌 match_details 테이블에서 '현재 유저(ouid)'의 기록이 있는지 확인
+        // DB에 이미 현재 유저의 기록이 있는지 확인
         const { data: existingDetail } = await supabase
           .from('match_details')
           .select('match_id')
@@ -190,16 +191,23 @@ async function main() {
 
         if (existingDetail) {
           skippedCount++;
-          continue; // 현재 유저의 상세 전적이 이미 있다면 API 호출 스킵
+          continue; 
         }
 
         // 새 매치만 상세 정보 API 호출
         const matchData = await fetchNexonApi(`https://open.api.nexon.com/fconline/v1/match-detail?matchid=${matchId}`);
         await sleep(DELAY_MS);
 
-        if (!matchData || !matchData.matchInfo) continue;
+        if (!matchData || !matchData.matchInfo || !matchData.matchDate) continue;
 
-        // 💡 [수정됨] matches 테이블 저장 시 다른 유저를 통해 이미 저장된 match_id일 수 있으므로 upsert 사용 (중복 시 무시)
+        // 💡 [핵심] 2026-07-13 이전 경기 데이터인지 검사
+        const matchDate = new Date(matchData.matchDate);
+        if (matchDate < CUTOFF_DATE) {
+          dateFilteredCount++;
+          continue; // 7월 13일 이전 데이터는 DB 저장을 완전히 건너뜁니다.
+        }
+
+        // matches 테이블 저장
         await supabase.from('matches').upsert({
           match_id: matchData.matchId,
           match_date: matchData.matchDate,
@@ -259,7 +267,7 @@ async function main() {
         }
       }
 
-      console.log(`  └ 🎉 [${currentNickname}] 처리 완료 (신규 저장: ${savedCount}건, 기존 스킵: ${skippedCount}건)`);
+      console.log(`  └ 🎉 [${currentNickname}] 처리 완료 (신규 저장: ${savedCount}건, 기존 스킵: ${skippedCount}건, 7/13일 이전 스킵: ${dateFilteredCount}건)`);
 
     } catch (err) {
       console.error(`❌ [${currentNickname}] 스크립트 실행 중 에러:`, err.message);
