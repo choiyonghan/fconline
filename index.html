@@ -2,22 +2,27 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>FC 온라인 전적 분석</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FC 온라인 상대 전적 조회</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Supabase JS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="app-container">
+    
+    <!-- 헤더 영역 -->
     <header class="app-header">
-      <h1>⚽ FC 온라인 전적실</h1>
-      <div id="status" class="status-text">유저 목록 로딩 중...</div>
+      <h1>⚽ 상대 전적 분석기</h1>
+      <p class="status-text" id="statusText">유저를 선택해주세요</p>
     </header>
 
-    <!-- 유저 선택 버튼 목록 -->
-    <div id="nicknameButtons" class="nickname-bar"></div>
+    <!-- 1. 닉네임 선택 바 -->
+    <div class="nickname-bar" id="nicknameBar">
+      <!-- JS로 동적 생성됨 -->
+    </div>
 
-    <!-- 날짜 필터 -->
+    <!-- 2. 날짜 및 필터 카드 -->
     <div class="filter-card">
       <div class="date-inputs">
         <input type="date" id="startDate">
@@ -25,88 +30,163 @@
         <input type="date" id="endDate">
       </div>
       <div class="filter-actions">
-        <button id="btnSearchDate" class="btn-primary">조회</button>
-        <button id="btnResetDate" class="btn-secondary">초기화</button>
+        <button class="btn-primary" id="btnSearch">조회</button>
+        <button class="btn-secondary" id="btnReset">전체보기</button>
       </div>
     </div>
 
-    <!-- 요약 정보 -->
-    <div id="summaryInfo" class="summary-info" style="display:none;">
-      <div id="dateRange"></div>
-    </div>
-
-    <!-- 종합 통계 카드 -->
-    <div id="overallStatsContainer"></div>
-
-    <!-- 상대 카드 목록 -->
-    <div id="opponentList" class="opponent-list"></div>
-
-    <!-- 상세 보기 카드 (아코디언 연동) -->
-    <div id="detailCard" class="detail-card" style="display:none;">
-      <div class="detail-header">
-        <div id="detailTitle" class="detail-title">상대 전적 상세</div>
-        <div class="detail-badges">
-          <span id="matchCountBadge" class="badge">0경기</span>
-          <span id="winRateBadge" class="badge highlight">승률 0%</span>
-        </div>
+    <!-- 3. 상대 목록 및 상세 결과 영역 -->
+    <main class="content-area">
+      <div class="opponent-list" id="opponentList">
+        <!-- JS로 동적 생성됨 -->
       </div>
+    </main>
 
-      <!-- 최근 경기 칩 -->
-      <div class="recent-matches-box">
-        <div class="box-label">최근 경기 결과</div>
-        <div id="recentMatchesContainer" class="recent-chips"></div>
-      </div>
-
-      <!-- 📱 [모바일 최적화] 연속 및 역대 최다 기록 섹션 -->
-      <div class="streak-section">
-        <div class="streak-header">
-          <span class="section-title">⚡ 현재 상대 전적 상태</span>
-          <div id="streakBadge" class="streak-badge">계산 중...</div>
-        </div>
-
-        <!-- 🏆 2x2 대시보드 -->
-        <div class="max-streak-container">
-          <div class="max-streak-title">🏆 역대 상대 최고 기록 (Record)</div>
-          <div class="max-streak-grid">
-            <div class="max-card win">
-              <span class="max-label">최다 연승</span>
-              <span id="maxWinVal" class="max-val">0연승</span>
-            </div>
-            <div class="max-card lose">
-              <span class="max-label">최다 연패</span>
-              <span id="maxLoseVal" class="max-val">0연패</span>
-            </div>
-            <div class="max-card winless">
-              <span class="max-label">최다 무승</span>
-              <span id="maxWinlessVal" class="max-val">0경기</span>
-            </div>
-            <div class="max-card unbeaten">
-              <span class="max-label">최다 무패</span>
-              <span id="maxUnbeatenVal" class="max-val">0경기</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 선수 통계 요약 -->
-      <div class="top-players-box">
-        <div class="box-label">상대전 주요 선수</div>
-        <div class="player-stat-item">
-          ⚽ 최다 득점: <span id="topScorerName">-</span> <small id="topScorerDetail"></small>
-        </div>
-        <div class="player-stat-item">
-          👟 최다 도움: <span id="topAssisterName">-</span> <small id="topAssisterDetail"></small>
-        </div>
-        <div class="player-stat-item">
-          🧤 최다 선방: <span id="topDefenderName">-</span> <small id="topDefenderDetail"></small>
-        </div>
-        <div class="player-stat-item">
-          📊 평균 득/실점: <span id="avgGoals">-</span> <small id="totalGoalsSub"></small>
-        </div>
-      </div>
-    </div>
   </div>
 
-  <script src="app.js"></script>
+  <script>
+    // Supabase 설정 (환경에 맞게 URL 및 Key 입력)
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let selectedUser = null;
+    let selectedOpponent = null;
+
+    // 초기화
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadUsers();
+      
+      document.getElementById('btnSearch').addEventListener('click', fetchStats);
+      document.getElementById('btnReset').addEventListener('click', () => {
+        document.getElementById('startDate').value = '';
+        document.getElementById('endDate').value = '';
+        fetchStats();
+      });
+    });
+
+    // 유저 목록 불러오기
+    async function loadUsers() {
+      const { data: users, error } = await supabaseClient.from('users').select('*');
+      if (error || !users) return;
+
+      const bar = document.getElementById('nicknameBar');
+      bar.innerHTML = '';
+
+      users.forEach((user, idx) => {
+        const btn = document.createElement('button');
+        btn.className = `btn-nickname ${idx === 0 ? 'active' : ''}`;
+        btn.textContent = user.nickname;
+        btn.onclick = () => selectUser(user, btn);
+        bar.appendChild(btn);
+
+        if (idx === 0) selectedUser = user;
+      });
+
+      if (selectedUser) fetchStats();
+    }
+
+    function selectUser(user, btnElement) {
+      document.querySelectorAll('.btn-nickname').forEach(b => b.classList.remove('active'));
+      btnElement.classList.add('active');
+      selectedUser = user;
+      document.getElementById('statusText').textContent = `${user.nickname} 님의 상대 전적`;
+      fetchStats();
+    }
+
+    // 전적 및 상대별 최다/현재 스트릭 데이터 조회
+    async function fetchStats() {
+      if (!selectedUser) return;
+
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+
+      // 1. user_opponent_streaks 테이블에서 요약 & 최다 기록 데이터 가져오기
+      const { data: streakData, error: streakErr } = await supabaseClient
+        .from('user_opponent_streaks')
+        .select('*')
+        .eq('ouid', selectedUser.ouid)
+        .order('last_match_date', { ascending: false });
+
+      if (streakErr) {
+        console.error('Streaks 가져오기 실패:', streakErr);
+        return;
+      }
+
+      renderOpponentList(streakData || []);
+    }
+
+    // 상대 리스트 및 최다 연승/연패 카드 렌더링
+    function renderOpponentList(streaks) {
+      const listContainer = document.getElementById('opponentList');
+      listContainer.innerHTML = '';
+
+      if (streaks.length === 0) {
+        listContainer.innerHTML = '<p style="text-align:center; padding: 20px; color:#64748b;">전적 데이터가 없습니다.</p>';
+        return;
+      }
+
+      streaks.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'op-card';
+
+        // 기존 카드 구조에 [역대 최다 기록 2x2 대시보드] 추가
+        card.innerHTML = `
+          <div class="op-card-header">
+            <span class="op-name">vs ${item.opponent_nick}</span>
+            <span class="op-winrate">최근 경기: ${item.last_match_date ? item.last_match_date.slice(0, 10) : '-'}</span>
+          </div>
+
+          <!-- 🔥 현재 연속 상태 바 -->
+          <div class="streak-section" style="margin: 6px 0;">
+            <div class="streak-badge ${getStreakClass(item)}">
+              🔥 현재: ${getCurrentStreakText(item)}
+            </div>
+          </div>
+
+          <!-- 🏆 기존 UI 스타일을 유지한 역대 최다 기록 2x2 박스 -->
+          <div class="max-streak-container">
+            <div class="max-streak-title">🏆 통산 최다 기록</div>
+            <div class="max-streak-grid">
+              <div class="max-card win">
+                <span class="max-label">최다 연승</span>
+                <span class="max-val">${item.max_win_streak || 0}연승</span>
+              </div>
+              <div class="max-card lose">
+                <span class="max-label">최다 연패</span>
+                <span class="max-val">${item.max_lose_streak || 0}연패</span>
+              </div>
+              <div class="max-card winless">
+                <span class="max-label">최다 무승(승없음)</span>
+                <span class="max-val">${item.max_winless_streak || 0}경기</span>
+              </div>
+              <div class="max-card unbeaten">
+                <span class="max-label">최다 무패(패없음)</span>
+                <span class="max-val">${item.max_unbeaten_streak || 0}경기</span>
+              </div>
+            </div>
+          </div>
+        `;
+
+        listContainer.appendChild(card);
+      });
+    }
+
+    // 현재 스트릭 텍스트 추출
+    function getCurrentStreakText(item) {
+      if (item.current_win_streak > 0) return `${item.current_win_streak}연승 중 🚀`;
+      if (item.current_lose_streak > 0) return `${item.current_lose_streak}연패 중 😭`;
+      if (item.current_unbeaten_streak > 0) return `${item.current_unbeaten_streak}경기 무패 중 🛡️`;
+      return '기록 없음';
+    }
+
+    // 현재 스트릭 배지 색상 클래스
+    function getStreakClass(item) {
+      if (item.current_win_streak > 0) return 'good';
+      if (item.current_lose_streak > 0) return 'bad';
+      if (item.current_unbeaten_streak > 0) return 'warning';
+      return 'neutral';
+    }
+  </script>
 </body>
 </html>
