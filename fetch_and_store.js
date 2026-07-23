@@ -79,16 +79,37 @@ async function fetchNexonApi(url) {
   throw new Error("사용 가능한 API 키가 없습니다.");
 }
 
-// 💡 [신규] 유저 대 상대별 현재 및 역대 최다 연속 기록 계산 및 DB Upsert 함수
+// 💡 [수정] 유저 대 상대별 현재 및 역대 최다 연속 기록 계산 및 DB Upsert 함수
 async function updateUserOpponentStreaks(ouid, nickname) {
   try {
-    // 해당 유저의 모든 매치 상세 데이터 가져오기 (매치 날짜 조인을 위해 matches 포함)
-    const { data: details, error } = await supabase
-      .from('match_details')
-      .select('*, matches(match_date)')
-      .eq('ouid', ouid);
+    // 1000개 제한 문제를 방지하기 위해 모든 데이터 페이징 조회
+    let details = [];
+    let page = 0;
+    const PAGE_SIZE = 1000;
 
-    if (error || !details || details.length === 0) return;
+    while (true) {
+      const { data, error } = await supabase
+        .from('match_details')
+        .select('*, matches(match_date)')
+        .eq('ouid', ouid)
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+      if (error) {
+        console.error(`  └ ❌ [${nickname}] match_details 조회 실패:`, error.message);
+        return;
+      }
+
+      if (!data || data.length === 0) break;
+      details = details.concat(data);
+
+      if (data.length < PAGE_SIZE) break;
+      page++;
+    }
+
+    if (details.length === 0) {
+      console.log(`  └ ⚠️ [${nickname}] 집계할 match_details 데이터가 없습니다.`);
+      return;
+    }
 
     // 상대별로 매치 그룹화
     const opponentGroups = {};
@@ -108,6 +129,8 @@ async function updateUserOpponentStreaks(ouid, nickname) {
         matchDate: new Date(realDate || 0)
       });
     });
+
+    let successCount = 0;
 
     // 각 상대별로 과거 -> 현재 순(오래된 순)으로 정렬 후 연속/최다 기록 계산
     for (const [opOuid, group] of Object.entries(opponentGroups)) {
@@ -144,6 +167,10 @@ async function updateUserOpponentStreaks(ouid, nickname) {
         if (curUnbeaten > maxUnbeaten) maxUnbeaten = curUnbeaten;
       }
 
+      const lastMatchDate = group.matches.length > 0 
+        ? group.matches[group.matches.length - 1].matchDate.toISOString() 
+        : new Date().toISOString();
+
       // user_opponent_streaks 테이블에 Upsert
       const streakPayload = {
         ouid: ouid,
@@ -161,16 +188,22 @@ async function updateUserOpponentStreaks(ouid, nickname) {
         max_winless_streak: maxWinless,
         max_unbeaten_streak: maxUnbeaten,
 
-        total_matches: group.matches.length,
+        last_match_date: lastMatchDate,
         updated_at: new Date().toISOString()
       };
 
-      await supabase
+      const { error: upsertError } = await supabase
         .from('user_opponent_streaks')
         .upsert(streakPayload, { onConflict: 'ouid,opponent_ouid' });
+
+      if (upsertError) {
+        console.error(`  └ ❌ [${nickname} vs ${group.opponent_nick}] Streaks DB 저장 에러:`, upsertError.message);
+      } else {
+        successCount++;
+      }
     }
 
-    console.log(`  └ 📊 [${nickname}] 연속/최다 기록 집계 DB 업데이트 완료`);
+    console.log(`  └ 📊 [${nickname}] 연속/최다 기록 집계 완료 (총 ${successCount}명의 상대 전적 DB 업데이트됨)`);
   } catch (err) {
     console.error(`  └ ❌ [${nickname}] 연속 기록 집계 중 에러 발생:`, err.message);
   }
@@ -366,7 +399,7 @@ async function main() {
 
       console.log(`  └ 🎉 [${currentNickname}] 처리 완료 (신규 저장: ${savedCount}건, 기존 스킵: ${skippedCount}건, 7/13일 이전 스킵: ${dateFilteredCount}건)`);
 
-      // 💡 [핵심] 해당 유저의 수집이 끝나면 상대별 현재/역대 연속 기록을 집계하여 DB에 업데이트합니다.
+      // 해당 유저의 수집이 끝나면 상대별 현재/역대 연속 기록을 집계하여 DB에 업데이트합니다.
       await updateUserOpponentStreaks(currentOuid, currentNickname);
 
     } catch (err) {
