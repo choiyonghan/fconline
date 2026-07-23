@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import ws from 'ws';
 
-// 1. 수집 대상 닉네임 목록 (DB에 없으면 자동으로 OUID를 조회하여 등록합니다)
+// 1. 수집 대상 닉네임 목록
 const TARGET_NICKNAMES = [
   'D로쏘네리',
   '내혀를가져가',
@@ -14,7 +14,7 @@ const TARGET_NICKNAMES = [
   '프란체스co토티'
 ];
 
-// 💡 [추가] 2026년 7월 13일 이전 데이터 필터링 기준선 (KST)
+// 2026년 7월 13일 이전 데이터 필터링 기준선 (KST)
 const CUTOFF_DATE = new Date('2026-07-13T00:00:00+09:00');
 
 // 2. 환경 변수 및 설정
@@ -77,6 +77,103 @@ async function fetchNexonApi(url) {
   }
 
   throw new Error("사용 가능한 API 키가 없습니다.");
+}
+
+// 💡 [신규] 유저 대 상대별 현재 및 역대 최다 연속 기록 계산 및 DB Upsert 함수
+async function updateUserOpponentStreaks(ouid, nickname) {
+  try {
+    // 해당 유저의 모든 매치 상세 데이터 가져오기 (매치 날짜 조인을 위해 matches 포함)
+    const { data: details, error } = await supabase
+      .from('match_details')
+      .select('*, matches(match_date)')
+      .eq('ouid', ouid);
+
+    if (error || !details || details.length === 0) return;
+
+    // 상대별로 매치 그룹화
+    const opponentGroups = {};
+
+    details.forEach(detail => {
+      const opOuid = detail.opponent_ouid || 'UNKNOWN';
+      if (!opponentGroups[opOuid]) {
+        opponentGroups[opOuid] = {
+          opponent_nick: detail.opponent_nick || '상대 미상',
+          matches: []
+        };
+      }
+      
+      const realDate = detail.matches ? detail.matches.match_date : (detail.match_date || detail.created_at);
+      opponentGroups[opOuid].matches.push({
+        result: detail.match_result,
+        matchDate: new Date(realDate || 0)
+      });
+    });
+
+    // 각 상대별로 과거 -> 현재 순(오래된 순)으로 정렬 후 연속/최다 기록 계산
+    for (const [opOuid, group] of Object.entries(opponentGroups)) {
+      // 날짜 오름차순 정렬 (과거 -> 현재)
+      group.matches.sort((a, b) => a.matchDate - b.matchDate);
+
+      let curWin = 0, curLose = 0, curWinless = 0, curUnbeaten = 0;
+      let maxWin = 0, maxLose = 0, maxWinless = 0, maxUnbeaten = 0;
+
+      for (const m of group.matches) {
+        const res = m.result;
+
+        if (res === '승') {
+          curWin++;
+          curLose = 0;
+          curWinless = 0;
+          curUnbeaten++;
+        } else if (res === '패') {
+          curWin = 0;
+          curLose++;
+          curWinless++;
+          curUnbeaten = 0;
+        } else { // '무'
+          curWin = 0;
+          curLose = 0;
+          curWinless++;
+          curUnbeaten++;
+        }
+
+        // 역대 최대 값 갱신 (Max)
+        if (curWin > maxWin) maxWin = curWin;
+        if (curLose > maxLose) maxLose = curLose;
+        if (curWinless > maxWinless) maxWinless = curWinless;
+        if (curUnbeaten > maxUnbeaten) maxUnbeaten = curUnbeaten;
+      }
+
+      // user_opponent_streaks 테이블에 Upsert
+      const streakPayload = {
+        ouid: ouid,
+        opponent_ouid: opOuid,
+        user_nickname: nickname,
+        opponent_nick: group.opponent_nick,
+        
+        current_win_streak: curWin,
+        current_lose_streak: curLose,
+        current_winless_streak: curWinless,
+        current_unbeaten_streak: curUnbeaten,
+
+        max_win_streak: maxWin,
+        max_lose_streak: maxLose,
+        max_winless_streak: maxWinless,
+        max_unbeaten_streak: maxUnbeaten,
+
+        total_matches: group.matches.length,
+        updated_at: new Date().toISOString()
+      };
+
+      await supabase
+        .from('user_opponent_streaks')
+        .upsert(streakPayload, { onConflict: 'ouid,opponent_ouid' });
+    }
+
+    console.log(`  └ 📊 [${nickname}] 연속/최다 기록 집계 DB 업데이트 완료`);
+  } catch (err) {
+    console.error(`  └ ❌ [${nickname}] 연속 기록 집계 중 에러 발생:`, err.message);
+  }
 }
 
 async function main() {
@@ -175,7 +272,7 @@ async function main() {
 
       let savedCount = 0;
       let skippedCount = 0;
-      let dateFilteredCount = 0; // 💡 [추가] 날짜 제한으로 스킵된 건수
+      let dateFilteredCount = 0;
 
       // 매치 상세 조회 및 저장
       for (let i = 0; i < matchIds.length; i++) {
@@ -200,11 +297,11 @@ async function main() {
 
         if (!matchData || !matchData.matchInfo || !matchData.matchDate) continue;
 
-        // 💡 [핵심] 2026-07-13 이전 경기 데이터인지 검사
+        // 2026-07-13 이전 경기 데이터인지 검사
         const matchDate = new Date(matchData.matchDate);
         if (matchDate < CUTOFF_DATE) {
           dateFilteredCount++;
-          continue; // 7월 13일 이전 데이터는 DB 저장을 완전히 건너뜁니다.
+          continue;
         }
 
         // matches 테이블 저장
@@ -269,12 +366,15 @@ async function main() {
 
       console.log(`  └ 🎉 [${currentNickname}] 처리 완료 (신규 저장: ${savedCount}건, 기존 스킵: ${skippedCount}건, 7/13일 이전 스킵: ${dateFilteredCount}건)`);
 
+      // 💡 [핵심] 해당 유저의 수집이 끝나면 상대별 현재/역대 연속 기록을 집계하여 DB에 업데이트합니다.
+      await updateUserOpponentStreaks(currentOuid, currentNickname);
+
     } catch (err) {
       console.error(`❌ [${currentNickname}] 스크립트 실행 중 에러:`, err.message);
     }
   }
 
-  console.log("\n✅ 모든 유저의 전적 데이터 수집 파이프라인이 성공적으로 끝났습니다!");
+  console.log("\n✅ 모든 유저의 전적 데이터 수집 및 집계 파이프라인이 성공적으로 끝났습니다!");
 }
 
 main();
