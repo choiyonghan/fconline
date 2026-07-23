@@ -1,18 +1,10 @@
-/* ============================================================
-   📱 모바일 퍼스트 & 뷰포트 고정 디자인 (PC 대응)
-   ============================================================ */
 :root {
   --primary-color: #2563eb;
-  --primary-hover: #1d4ed8;
   --bg-color: #f1f5f9;
-  --body-bg: #e2e8f0;
   --card-bg: #ffffff;
   --text-main: #0f172a;
   --text-muted: #64748b;
   --border-color: #e2e8f0;
-  --win-color: #16a34a;
-  --lose-color: #dc2626;
-  --draw-color: #475569;
 }
 
 * {
@@ -20,99 +12,64 @@
   margin: 0;
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background-color: var(--body-bg);
-  color: var(--text-main);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  min-height: 100vh;
-}
-
-.mobile-wrapper {
-  width: 100%;
-  max-width: 480px;
-  min-height: 100vh;
   background-color: var(--bg-color);
-  padding: 16px 14px 40px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  color: var(--text-main);
+  padding: 12px;
+  max-width: 480px; /* 모바일 중심 레이아웃 */
+  margin: 0 auto;
 }
 
-.app-header {
-  text-align: center;
-  margin-bottom: 16px;
-  padding: 4px 0;
+.app-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .app-header h1 {
-  font-size: 1.35rem;
+  font-size: 1.3rem;
   font-weight: 800;
-  color: var(--text-main);
 }
 
 .status-text {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
-/* 공통 카드 스타일 */
-.card {
-  background: var(--card-bg);
-  border-radius: 14px;
-  padding: 14px;
-  margin-bottom: 12px;
-  border: 1px solid var(--border-color);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
-}
-
-.section-title {
-  font-size: 0.92rem;
-  font-weight: 700;
-  margin-bottom: 10px;
-}
-
-/* 👤 유저 선택 버튼 */
-.nickname-buttons-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+/* 닉네임 버튼 패널 */
+.nickname-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .btn-nickname {
-  background: #f8fafc;
+  white-space: nowrap;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  border-radius: 20px;
   border: 1px solid var(--border-color);
-  padding: 10px 8px;
-  border-radius: 10px;
+  background: white;
   cursor: pointer;
-  font-weight: 700;
-  font-size: 0.88rem;
-  color: #334155;
-  transition: all 0.15s ease;
-  text-align: center;
 }
-
-.btn-nickname:active { transform: scale(0.97); }
 
 .btn-nickname.active {
   background: var(--primary-color);
-  color: #ffffff;
+  color: white;
   border-color: var(--primary-color);
-  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.3);
+  font-weight: bold;
 }
 
-/* 📅 날짜 필터 */
-.date-range-text {
-  font-weight: 700;
-  font-size: 0.85rem;
-  margin-bottom: 10px;
-  color: #334155;
-}
-
-.date-filter-group {
+/* 필터 입력창 모바일 가로 정렬 */
+.filter-card {
+  background: white;
+  padding: 10px;
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -124,211 +81,175 @@ body {
   gap: 6px;
 }
 
-.date-input {
+.date-inputs input {
   flex: 1;
-  padding: 8px 6px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  padding: 6px;
   font-size: 0.8rem;
-  text-align: center;
-  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
 }
 
-.date-buttons {
+.filter-actions {
   display: flex;
   gap: 6px;
 }
 
-.btn {
+.filter-actions button {
   flex: 1;
-  padding: 9px 0;
+  padding: 6px;
+  font-size: 0.8rem;
+  border-radius: 6px;
   border: none;
-  border-radius: 8px;
   cursor: pointer;
-  font-weight: 700;
-  font-size: 0.85rem;
-  transition: background 0.2s;
 }
 
-.btn:active { transform: scale(0.98); }
 .btn-primary { background: var(--primary-color); color: white; }
-.btn-secondary { background: #94a3b8; color: white; }
+.btn-secondary { background: #e2e8f0; color: #475569; }
 
-/* 🃏 상대 카드 리스트 */
+/* 상대 카드 리스트 */
 .opponent-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .op-card {
-  background: var(--card-bg);
+  background: white;
+  border-radius: 10px;
+  padding: 12px;
   border: 1px solid var(--border-color);
-  border-radius: 14px;
-  padding: 14px;
   cursor: pointer;
-  transition: all 0.15s ease;
 }
-
-.op-card:active { transform: scale(0.98); }
 
 .op-card.selected {
   border: 2px solid var(--primary-color);
-  background-color: #eff6ff;
-}
-
-.op-card.wook-card {
-  border: 1.5px solid #f59e0b;
 }
 
 .op-card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
   margin-bottom: 8px;
 }
 
-.op-name { font-weight: 800; font-size: 1rem; }
-.op-winrate { font-size: 0.85rem; font-weight: 800; color: var(--primary-color); }
+.op-name { font-weight: 700; font-size: 0.95rem; }
+.op-winrate { font-size: 0.85rem; font-weight: 700; color: var(--primary-color); }
 
 .op-card-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  text-align: center;
-  font-size: 0.78rem;
-  background: #f8fafc;
-  padding: 8px 4px;
-  border-radius: 8px;
-}
-
-.op-stat-val { font-weight: 800; margin-top: 2px; font-size: 0.82rem; }
-.win-text { color: var(--win-color); }
-.lose-text { color: var(--lose-color); }
-
-.wook-badge-box {
-  margin-top: 8px;
-  padding: 8px;
-  background: #fef3c7;
-  border-radius: 8px;
-  font-size: 0.78rem;
-  color: #78350f;
-  text-align: center;
-  line-height: 1.3;
-}
-
-/* 🪗 상세 분석 리포트 카드 */
-.detail-card {
-  background: var(--card-bg);
-  border: 2px solid var(--primary-color);
-  border-radius: 14px;
-  padding: 14px;
-  margin: 4px 0 12px;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.12);
-  animation: slideDown 0.2s ease-out;
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.detail-title { font-size: 0.95rem; font-weight: 800; }
-
-.match-summary-badges {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.badge {
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.info-badge { background: #e0e7ff; color: #3730a3; }
-
-/* 뱃지 전용 클래스 */
-.streak-badge {
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  background: #f1f5f9;
-  color: #475569;
-}
-.streak-badge.good { background: #dcfce7; color: #15803d; }
-.streak-badge.bad { background: #fee2e2; color: #b91c1c; }
-.streak-badge.warning { background: #fef3c7; color: #b45309; }
-.streak-badge.neutral { background: #f1f5f9; color: #475569; }
-
-/* 📜 최근 경기 결과 트랙 */
-.recent-matches-section {
-  margin-bottom: 12px;
-}
-
-.recent-matches-title {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  margin-bottom: 6px;
-}
-
-.recent-matches-container {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-  -webkit-overflow-scrolling: touch;
-}
-
-.recent-matches-container::-webkit-scrollbar {
-  height: 4px;
-}
-.recent-matches-container::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-.match-chip {
-  flex: 0 0 auto;
-  padding: 6px 10px;
-  border-radius: 8px;
   font-size: 0.75rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.match-chip.win { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-.match-chip.lose { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
-.match-chip.draw { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-
-/* 📊 상세 지표 그리드 */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-
-.metric-box {
+  text-align: center;
   background: #f8fafc;
-  padding: 10px 8px;
-  border-radius: 8px;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.win-text { color: #ef4444; font-weight: bold; }
+.lose-text { color: #3b82f6; font-weight: bold; }
+
+/* 📱 모바일 연속/최다 기록 디자인 */
+.detail-card {
+  background: white;
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.streak-section {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px;
+  margin: 12px 0;
   border: 1px solid var(--border-color);
 }
 
-.metric-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; }
-.metric-value { font-size: 0.85rem; font-weight: 800; margin: 3px 0 1px; }
-.metric-sub { font-size: 0.7rem; color: #64748b; }
+.streak-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.section-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.streak-badge {
+  display: inline-block;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 6px;
+  word-break: keep-all;
+}
+
+.streak-badge.good { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+.streak-badge.bad { background: #eff6ff; color: #2563eb; border: 1px solid #93c5fd; }
+.streak-badge.warning { background: #fffbeb; color: #d97706; border: 1px solid #fcd34d; }
+.streak-badge.neutral { background: #f1f5f9; color: #64748b; }
+
+/* 2x2 대시보드 카드 */
+.max-streak-container {
+  background: #ffffff;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.max-streak-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #b45309;
+  margin-bottom: 8px;
+}
+
+.max-streak-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.max-card {
+  padding: 6px 8px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  border-left: 3px solid #cbd5e1;
+}
+
+.max-card.win { border-left-color: #ef4444; background: #fff5f5; }
+.max-card.lose { border-left-color: #3b82f6; background: #f0f7ff; }
+.max-card.winless { border-left-color: #f59e0b; background: #fffdf0; }
+.max-card.unbeaten { border-left-color: #10b981; background: #f0fdf4; }
+
+.max-label { font-size: 0.7rem; color: #64748b; font-weight: 600; }
+.max-val { font-size: 0.95rem; font-weight: 800; color: #0f172a; margin-top: 2px; }
+
+/* 최근 경기 칩 */
+.recent-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.match-chip {
+  padding: 3px 6px;
+  font-size: 0.72rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.match-chip.win { background: #fee2e2; color: #991b1b; }
+.match-chip.lose { background: #dbeafe; color: #1e40af; }
+.match-chip.draw { background: #f1f5f9; color: #475569; }
+
+.top-players-box {
+  margin-top: 10px;
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
