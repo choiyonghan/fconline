@@ -3,97 +3,109 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>FC 온라인 상대전적 분석기</title>
+  <title>FC 온라인 전적 분석</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-
-  <!-- 모바일 뷰포트 컨테이너 -->
-  <main class="mobile-wrapper">
+  <div class="app-container">
     <header class="app-header">
-      <h1>⚽ FC 온라인 상대전적</h1>
-      <p id="status" class="status-text">사용자 데이터를 불러오는 중...</p>
+      <h1>⚽ FC 온라인 전적실</h1>
+      <div id="status" class="status-text">유저 목록 로딩 중...</div>
     </header>
 
     <!-- 유저 선택 버튼 목록 -->
-    <section class="card user-selection">
-      <h2 class="section-title">👤 분석할 유저 선택</h2>
-      <div id="nicknameButtons" class="nickname-buttons-grid"></div>
-    </section>
+    <div id="nicknameButtons" class="nickname-bar"></div>
 
-    <!-- 요약 정보 및 날짜 필터 -->
-    <section id="summaryInfo" class="summary-section" style="display: none;">
-      <div class="card filter-card">
-        <div id="dateRange" class="date-range-text">📅 분석 기간 (KST): -</div>
-        <div class="date-filter-group">
-          <div class="date-inputs">
-            <input type="date" id="startDate" class="date-input">
-            <span>~</span>
-            <input type="date" id="endDate" class="date-input">
-          </div>
-          <div class="date-buttons">
-            <button id="btnSearchDate" class="btn btn-primary">조회</button>
-            <button id="btnResetDate" class="btn btn-secondary">초기화</button>
-          </div>
-        </div>
+    <!-- 날짜 필터 -->
+    <div class="filter-card">
+      <div class="date-inputs">
+        <input type="date" id="startDate">
+        <span>~</span>
+        <input type="date" id="endDate">
       </div>
+      <div class="filter-actions">
+        <button id="btnSearchDate" class="btn-primary">조회</button>
+        <button id="btnResetDate" class="btn-secondary">초기화</button>
+      </div>
+    </div>
 
-      <!-- 종합 전적 카드 컨테이너 -->
-      <div id="overallStatsContainer"></div>
-    </section>
+    <!-- 요약 정보 -->
+    <div id="summaryInfo" class="summary-info" style="display:none;">
+      <div id="dateRange"></div>
+    </div>
 
-    <!-- 상대 카드 리스트 및 아코디언 영역 -->
-    <section id="opponentList" class="opponent-list" style="display: none;"></section>
+    <!-- 종합 통계 카드 -->
+    <div id="overallStatsContainer"></div>
 
-    <!-- 상세 리포트 카드 -->
-    <div class="detail-card" id="detailCard" style="display: none;">
+    <!-- 상대 카드 목록 -->
+    <div id="opponentList" class="opponent-list"></div>
+
+    <!-- 상세 보기 카드 (아코디언 연동) -->
+    <div id="detailCard" class="detail-card" style="display:none;">
       <div class="detail-header">
-        <div class="detail-title" id="detailTitle">상대 분석 상세 리포트</div>
-        <div class="streak-badge" id="streakBadge">-</div>
-      </div>
-      
-      <!-- 요약 뱃지 모음 -->
-      <div class="match-summary-badges">
-        <span class="badge info-badge" id="matchCountBadge">총 -경기</span>
-        <span class="badge info-badge" id="winRateBadge">승률 -%</span>
+        <div id="detailTitle" class="detail-title">상대 전적 상세</div>
+        <div class="detail-badges">
+          <span id="matchCountBadge" class="badge">0경기</span>
+          <span id="winRateBadge" class="badge highlight">승률 0%</span>
+        </div>
       </div>
 
-      <!-- 최근 경기 결과 (문구 수정) -->
-      <div class="recent-matches-section">
-        <div class="recent-matches-title">📜 최근 경기 결과</div>
-        <div class="recent-matches-container" id="recentMatchesContainer"></div>
+      <!-- 최근 경기 칩 -->
+      <div class="recent-matches-box">
+        <div class="box-label">최근 경기 결과</div>
+        <div id="recentMatchesContainer" class="recent-chips"></div>
       </div>
 
-      <!-- 상세 지표 그리드 -->
-      <div class="dashboard-grid">
-        <div class="metric-box">
-          <div class="metric-label">평균 득실점</div>
-          <div class="metric-value" id="avgGoals">⚽ 0골 / 🛡️ 0실점</div>
-          <div class="metric-sub" id="totalGoalsSub">총 0득점 / 총 0실점</div>
+      <!-- 📱 [모바일 최적화] 연속 및 역대 최다 기록 섹션 -->
+      <div class="streak-section">
+        <div class="streak-header">
+          <span class="section-title">⚡ 현재 상대 전적 상태</span>
+          <div id="streakBadge" class="streak-badge">계산 중...</div>
         </div>
 
-        <div class="metric-box">
-          <div class="metric-label">⚽ 최다 득점 선수</div>
-          <div class="metric-value" id="topScorerName">기록 없음</div>
-          <div class="metric-sub" id="topScorerDetail">-</div>
+        <!-- 🏆 2x2 대시보드 -->
+        <div class="max-streak-container">
+          <div class="max-streak-title">🏆 역대 상대 최고 기록 (Record)</div>
+          <div class="max-streak-grid">
+            <div class="max-card win">
+              <span class="max-label">최다 연승</span>
+              <span id="maxWinVal" class="max-val">0연승</span>
+            </div>
+            <div class="max-card lose">
+              <span class="max-label">최다 연패</span>
+              <span id="maxLoseVal" class="max-val">0연패</span>
+            </div>
+            <div class="max-card winless">
+              <span class="max-label">최다 무승</span>
+              <span id="maxWinlessVal" class="max-val">0경기</span>
+            </div>
+            <div class="max-card unbeaten">
+              <span class="max-label">최다 무패</span>
+              <span id="maxUnbeatenVal" class="max-val">0경기</span>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <div class="metric-box">
-          <div class="metric-label">👟 최다 도움 선수</div>
-          <div class="metric-value" id="topAssisterName">기록 없음</div>
-          <div class="metric-sub" id="topAssisterDetail">-</div>
+      <!-- 선수 통계 요약 -->
+      <div class="top-players-box">
+        <div class="box-label">상대전 주요 선수</div>
+        <div class="player-stat-item">
+          ⚽ 최다 득점: <span id="topScorerName">-</span> <small id="topScorerDetail"></small>
         </div>
-
-        <div class="metric-box">
-          <div class="metric-label">🧤 최다 선방 선수</div>
-          <div class="metric-value" id="topDefenderName">기록 없음</div>
-          <div class="metric-sub" id="topDefenderDetail">-</div>
+        <div class="player-stat-item">
+          👟 최다 도움: <span id="topAssisterName">-</span> <small id="topAssisterDetail"></small>
+        </div>
+        <div class="player-stat-item">
+          🧤 최다 선방: <span id="topDefenderName">-</span> <small id="topDefenderDetail"></small>
+        </div>
+        <div class="player-stat-item">
+          📊 평균 득/실점: <span id="avgGoals">-</span> <small id="totalGoalsSub"></small>
         </div>
       </div>
     </div>
-  </main>
+  </div>
 
   <script src="app.js"></script>
 </body>
