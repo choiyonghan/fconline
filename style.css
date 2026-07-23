@@ -1,299 +1,334 @@
+/* ============================================================
+   📱 모바일 퍼스트 & 뷰포트 고정 디자인 (PC 대응)
+   ============================================================ */
+:root {
+  --primary-color: #2563eb;
+  --primary-hover: #1d4ed8;
+  --bg-color: #f1f5f9;
+  --body-bg: #e2e8f0;
+  --card-bg: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --win-color: #16a34a;
+  --lose-color: #dc2626;
+  --draw-color: #475569;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background-color: #f1f5f9;
-  color: #1e293b;
+  background-color: var(--body-bg);
+  color: var(--text-main);
   display: flex;
   justify-content: center;
-  padding: 20px 10px;
+  align-items: flex-start;
+  min-height: 100vh;
 }
 
-.app-container {
+.mobile-wrapper {
   width: 100%;
-  max-width: 680px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  max-width: 480px;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+  padding: 16px 14px 40px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
-/* 헤더 */
 .app-header {
   text-align: center;
-  padding: 8px 0;
+  margin-bottom: 16px;
+  padding: 4px 0;
 }
 
 .app-header h1 {
-  font-size: 1.4rem;
-  color: #0f172a;
+  font-size: 1.35rem;
   font-weight: 800;
+  color: var(--text-main);
 }
 
 .status-text {
-  font-size: 0.85rem;
-  color: #64748b;
+  font-size: 0.82rem;
+  color: var(--text-muted);
   margin-top: 4px;
 }
 
-/* 닉네임 탭 바 */
-.nickname-bar {
-  display: flex;
+/* 공통 카드 스타일 */
+.card {
+  background: var(--card-bg);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.section-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+/* 👤 유저 선택 버튼 */
+.nickname-buttons-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-}
-
-.nickname-bar::-webkit-scrollbar {
-  height: 4px;
-}
-
-.nickname-bar::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
-  border-radius: 4px;
 }
 
 .btn-nickname {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #475569;
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  padding: 10px 8px;
+  border-radius: 10px;
   cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-}
-
-.btn-nickname.active, .btn-nickname:hover {
-  background: #2563eb;
-  color: #ffffff;
-  border-color: #2563eb;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
-}
-
-/* 요약 카드 대시보드 */
-.summary-card {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 16px;
-  border: 1px solid #e2e8f0;
-  display: flex;
-  justify-content: space-around;
-  text-align: center;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-}
-
-.summary-label {
-  display: block;
-  font-size: 0.75rem;
-  color: #64748b;
-  margin-bottom: 4px;
-}
-
-.summary-value {
-  font-size: 1.1rem;
   font-weight: 700;
-  color: #0f172a;
+  font-size: 0.88rem;
+  color: #334155;
+  transition: all 0.15s ease;
+  text-align: center;
 }
 
-.summary-value.highlight {
-  color: #2563eb;
+.btn-nickname:active { transform: scale(0.97); }
+
+.btn-nickname.active {
+  background: var(--primary-color);
+  color: #ffffff;
+  border-color: var(--primary-color);
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.3);
 }
 
-/* 필터 영역 */
-.filter-card {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 14px;
-  border: 1px solid #e2e8f0;
+/* 📅 날짜 필터 */
+.date-range-text {
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+  color: #334155;
+}
+
+.date-filter-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.filter-row {
-  display: flex;
   gap: 8px;
-  align-items: center;
-}
-
-.select-input, .text-input {
-  flex: 1;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 0.85rem;
-  outline: none;
-  background-color: #fff;
 }
 
 .date-inputs {
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex: 1.5;
-  font-size: 0.8rem;
-  color: #64748b;
+  gap: 6px;
 }
 
-.date-inputs input[type="date"] {
-  width: 100%;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 6px 8px;
-  font-size: 0.8rem;
-  outline: none;
-}
-
-.filter-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 2px;
-}
-
-.btn-primary {
-  flex: 2;
-  background-color: #2563eb;
-  color: white;
-  border: none;
-  padding: 9px;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.btn-secondary {
+.date-input {
   flex: 1;
-  background-color: #f8fafc;
-  color: #475569;
-  border: 1px solid #cbd5e1;
-  padding: 9px;
+  padding: 8px 6px;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  font-size: 0.85rem;
-  cursor: pointer;
+  font-size: 0.8rem;
+  text-align: center;
+  background: #f8fafc;
 }
 
-/* 상대 전적 카드 */
+.date-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.btn {
+  flex: 1;
+  padding: 9px 0;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: var(--primary-color); color: white; }
+.btn-secondary { background: #94a3b8; color: white; }
+
+/* 🃏 상대 카드 리스트 */
 .opponent-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .op-card {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 16px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  transition: transform 0.15s ease;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.op-card:active { transform: scale(0.98); }
+
+.op-card.selected {
+  border: 2px solid var(--primary-color);
+  background-color: #eff6ff;
+}
+
+.op-card.wook-card {
+  border: 1.5px solid #f59e0b;
 }
 
 .op-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
-.op-name {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #0f172a;
-}
+.op-name { font-weight: 800; font-size: 1rem; }
+.op-winrate { font-size: 0.85rem; font-weight: 800; color: var(--primary-color); }
 
-.op-winrate {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #2563eb;
-  background-color: #eff6ff;
-  padding: 4px 10px;
-  border-radius: 20px;
-}
-
-/* 스코어 바 */
-.op-score-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.op-card-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  text-align: center;
+  font-size: 0.78rem;
   background: #f8fafc;
-  padding: 10px 14px;
+  padding: 8px 4px;
   border-radius: 8px;
-  font-size: 0.9rem;
+}
+
+.op-stat-val { font-weight: 800; margin-top: 2px; font-size: 0.82rem; }
+.win-text { color: var(--win-color); }
+.lose-text { color: var(--lose-color); }
+
+.wook-badge-box {
+  margin-top: 8px;
+  padding: 8px;
+  background: #fef3c7;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: #78350f;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* 🪗 상세 분석 리포트 카드 */
+.detail-card {
+  background: var(--card-bg);
+  border: 2px solid var(--primary-color);
+  border-radius: 14px;
+  padding: 14px;
+  margin: 4px 0 12px;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.12);
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.detail-title { font-size: 0.95rem; font-weight: 800; }
+
+.match-summary-badges {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.badge {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
   font-weight: 700;
 }
 
-.score-item.win { color: #2563eb; }
-.score-item.draw { color: #64748b; }
-.score-item.lose { color: #dc2626; }
-.score-total { font-size: 0.8rem; color: #94a3b8; margin-left: auto; font-weight: normal; }
+.info-badge { background: #e0e7ff; color: #3730a3; }
 
-/* ➕ [추가된 최다 기록 미니 영역] */
-.op-streak-wrapper {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px dashed #e2e8f0;
-  font-size: 0.8rem;
+/* 뱃지 전용 클래스 */
+.streak-badge {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #f1f5f9;
   color: #475569;
 }
+.streak-badge.good { background: #dcfce7; color: #15803d; }
+.streak-badge.bad { background: #fee2e2; color: #b91c1c; }
+.streak-badge.warning { background: #fef3c7; color: #b45309; }
+.streak-badge.neutral { background: #f1f5f9; color: #475569; }
 
-.streak-row {
+/* 📜 최근 경기 결과 트랙 */
+.recent-matches-section {
+  margin-bottom: 12px;
+}
+
+.recent-matches-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.recent-matches-container {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
 }
 
-.streak-row:last-child {
-  margin-bottom: 0;
+.recent-matches-container::-webkit-scrollbar {
+  height: 4px;
+}
+.recent-matches-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
 }
 
-/* 카드 클릭 시 열리는 상세 경기 내역 (아코디언) */
-.details-toggle-btn {
-  width: 100%;
-  margin-top: 10px;
-  padding: 6px;
-  background: none;
-  border: none;
-  color: #64748b;
-  font-size: 0.8rem;
-  cursor: pointer;
-  text-align: center;
-}
-
-.match-history-container {
-  display: none;
-  margin-top: 10px;
-  border-top: 1px solid #f1f5f9;
-  padding-top: 10px;
-  max-height: 250px;
-  overflow-y: auto;
-}
-
-.match-history-container.open {
-  display: block;
-}
-
-.history-item {
+.match-chip {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
   display: flex;
-  justify-content: space-between;
-  font-size: 0.8rem;
-  padding: 6px 0;
-  border-bottom: 1px solid #f8fafc;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
-.history-result.win { color: #2563eb; font-weight: bold; }
-.history-result.draw { color: #64748b; font-weight: bold; }
-.history-result.lose { color: #dc2626; font-weight: bold; }
+.match-chip.win { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+.match-chip.lose { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+.match-chip.draw { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
 
-.empty-msg {
-  text-align: center;
-  padding: 40px;
-  color: #94a3b8;
-  font-size: 0.9rem;
+/* 📊 상세 지표 그리드 */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
 }
+
+.metric-box {
+  background: #f8fafc;
+  padding: 10px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.metric-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; }
+.metric-value { font-size: 0.85rem; font-weight: 800; margin: 3px 0 1px; }
+.metric-sub { font-size: 0.7rem; color: #64748b; }
