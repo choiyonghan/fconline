@@ -206,6 +206,27 @@ body {
 .win-text { color: var(--win-color); }
 .lose-text { color: var(--lose-color); }
 
+/* 🏆 서머리 영역 내 최다 연속 기록 칩 디자인 */
+.op-streak-summary {
+  margin-top: 8px;
+  padding: 8px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px 8px;
+  font-size: 0.75rem;
+}
+
+.streak-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.streak-label { color: var(--text-muted); font-weight: 600; }
+.streak-val { font-weight: 800; }
+
 .wook-badge-box {
   margin-top: 8px;
   padding: 8px;
