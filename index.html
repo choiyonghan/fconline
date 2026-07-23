@@ -5,41 +5,77 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FC 온라인 상대 전적 분석기</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Supabase JS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="app-container">
     
-    <!-- 헤더 영역 -->
+    <!-- 1. 헤더 영역 -->
     <header class="app-header">
-      <h1>⚽ 상대 전적 분석기</h1>
-      <p class="status-text" id="statusText">유저를 선택해주세요</p>
+      <h1>⚽ FC 온라인 상대 전적 분석기</h1>
+      <p class="status-text" id="statusText">분석할 유저를 선택해주세요</p>
     </header>
 
-    <!-- 1. 닉네임 선택 바 -->
-    <div class="nickname-bar" id="nicknameBar">
-      <!-- JS로 동적 생성 -->
+    <!-- 2. 내 닉네임 선택 바 -->
+    <div class="nickname-bar" id="nicknameBar"></div>
+
+    <!-- 3. 전체 요약 대시보드 카드 -->
+    <div class="summary-card" id="summaryCard">
+      <div class="summary-item">
+        <span class="summary-label">총 경기</span>
+        <span class="summary-value" id="totalMatchesCount">0전</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">전체 승률</span>
+        <span class="summary-value highlight" id="totalWinRate">0%</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">총 스코어</span>
+        <span class="summary-value" id="totalScoreText">0승 0무 0패</span>
+      </div>
     </div>
 
-    <!-- 2. 날짜 필터 카드 -->
+    <!-- 4. 필터 및 검색 컨트롤 카드가 -->
     <div class="filter-card">
-      <div class="date-inputs">
-        <input type="date" id="startDate">
-        <span>~</span>
-        <input type="date" id="endDate">
+      <div class="filter-row">
+        <!-- 매치 타입 필터 -->
+        <select id="matchTypeSelect" class="select-input">
+          <option value="ALL">전체 매치 (공식/친선)</option>
+          <option value="50">공식경기 1v1</option>
+          <option value="52">감독모드</option>
+          <option value="60">친선경기</option>
+        </select>
+
+        <!-- 상대 닉네임 검색 -->
+        <input type="text" id="searchOpponent" class="text-input" placeholder="상대 닉네임 검색...">
       </div>
+
+      <div class="filter-row">
+        <!-- 날짜 범위 -->
+        <div class="date-inputs">
+          <input type="date" id="startDate">
+          <span>~</span>
+          <input type="date" id="endDate">
+        </div>
+
+        <!-- 정렬 순서 -->
+        <select id="sortSelect" class="select-input">
+          <option value="RECENT">최근 경기순</option>
+          <option value="MOST_MATCHES">판수 많은순</option>
+          <option value="HIGH_WINRATE">승률 높은순</option>
+          <option value="LOW_WINRATE">승률 낮은순</option>
+        </select>
+      </div>
+
       <div class="filter-actions">
         <button class="btn-primary" id="btnSearch">조회</button>
-        <button class="btn-secondary" id="btnReset">전체보기</button>
+        <button class="btn-secondary" id="btnReset">필터 초기화</button>
       </div>
     </div>
 
-    <!-- 3. 상대 전적 카드가 들어갈 영역 -->
+    <!-- 5. 상대 전적 목록 및 상세 내역 영역 -->
     <main class="content-area">
-      <div class="opponent-list" id="opponentList">
-        <!-- JS로 동적 생성 -->
-      </div>
+      <div class="opponent-list" id="opponentList"></div>
     </main>
 
   </div>
