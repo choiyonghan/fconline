@@ -2,83 +2,98 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FC 온라인 상대 전적 분석기</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FC 온라인 상대전적 분석기</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <div class="app-container">
-    
-    <!-- 1. 헤더 영역 -->
+
+  <!-- 모바일 뷰포트 컨테이너 -->
+  <main class="mobile-wrapper">
     <header class="app-header">
-      <h1>⚽ FC 온라인 상대 전적 분석기</h1>
-      <p class="status-text" id="statusText">분석할 유저를 선택해주세요</p>
+      <h1>⚽ FC 온라인 상대전적</h1>
+      <p id="status" class="status-text">사용자 데이터를 불러오는 중...</p>
     </header>
 
-    <!-- 2. 내 닉네임 선택 바 -->
-    <div class="nickname-bar" id="nicknameBar"></div>
+    <!-- 유저 선택 버튼 목록 -->
+    <section class="card user-selection">
+      <h2 class="section-title">👤 분석할 유저 선택</h2>
+      <div id="nicknameButtons" class="nickname-buttons-grid"></div>
+    </section>
 
-    <!-- 3. 전체 요약 대시보드 카드 -->
-    <div class="summary-card" id="summaryCard">
-      <div class="summary-item">
-        <span class="summary-label">총 경기</span>
-        <span class="summary-value" id="totalMatchesCount">0전</span>
-      </div>
-      <div class="summary-item">
-        <span class="summary-label">전체 승률</span>
-        <span class="summary-value highlight" id="totalWinRate">0%</span>
-      </div>
-      <div class="summary-item">
-        <span class="summary-label">총 스코어</span>
-        <span class="summary-value" id="totalScoreText">0승 0무 0패</span>
-      </div>
-    </div>
-
-    <!-- 4. 필터 및 검색 컨트롤 카드가 -->
-    <div class="filter-card">
-      <div class="filter-row">
-        <!-- 매치 타입 필터 -->
-        <select id="matchTypeSelect" class="select-input">
-          <option value="ALL">전체 매치 (공식/친선)</option>
-          <option value="50">공식경기 1v1</option>
-          <option value="52">감독모드</option>
-          <option value="60">친선경기</option>
-        </select>
-
-        <!-- 상대 닉네임 검색 -->
-        <input type="text" id="searchOpponent" class="text-input" placeholder="상대 닉네임 검색...">
+    <!-- 요약 정보 및 날짜 필터 -->
+    <section id="summaryInfo" class="summary-section" style="display: none;">
+      <div class="card filter-card">
+        <div id="dateRange" class="date-range-text">📅 분석 기간 (KST): -</div>
+        <div class="date-filter-group">
+          <div class="date-inputs">
+            <input type="date" id="startDate" class="date-input">
+            <span>~</span>
+            <input type="date" id="endDate" class="date-input">
+          </div>
+          <div class="date-buttons">
+            <button id="btnSearchDate" class="btn btn-primary">조회</button>
+            <button id="btnResetDate" class="btn btn-secondary">초기화</button>
+          </div>
+        </div>
       </div>
 
-      <div class="filter-row">
-        <!-- 날짜 범위 -->
-        <div class="date-inputs">
-          <input type="date" id="startDate">
-          <span>~</span>
-          <input type="date" id="endDate">
+      <!-- 종합 전적 카드 컨테이너 -->
+      <div id="overallStatsContainer"></div>
+    </section>
+
+    <!-- 상대 카드 리스트 및 아코디언 영역 -->
+    <section id="opponentList" class="opponent-list" style="display: none;"></section>
+
+    <!-- 상세 리포트 카드 -->
+    <div class="detail-card" id="detailCard" style="display: none;">
+      <div class="detail-header">
+        <div class="detail-title" id="detailTitle">상대 분석 상세 리포트</div>
+        <div class="streak-badge" id="streakBadge">-</div>
+      </div>
+      
+      <!-- 요약 뱃지 모음 -->
+      <div class="match-summary-badges">
+        <span class="badge info-badge" id="matchCountBadge">총 -경기</span>
+        <span class="badge info-badge" id="winRateBadge">승률 -%</span>
+      </div>
+
+      <!-- 최근 경기 결과 (문구 수정) -->
+      <div class="recent-matches-section">
+        <div class="recent-matches-title">📜 최근 경기 결과</div>
+        <div class="recent-matches-container" id="recentMatchesContainer"></div>
+      </div>
+
+      <!-- 상세 지표 그리드 -->
+      <div class="dashboard-grid">
+        <div class="metric-box">
+          <div class="metric-label">평균 득실점</div>
+          <div class="metric-value" id="avgGoals">⚽ 0골 / 🛡️ 0실점</div>
+          <div class="metric-sub" id="totalGoalsSub">총 0득점 / 총 0실점</div>
         </div>
 
-        <!-- 정렬 순서 -->
-        <select id="sortSelect" class="select-input">
-          <option value="RECENT">최근 경기순</option>
-          <option value="MOST_MATCHES">판수 많은순</option>
-          <option value="HIGH_WINRATE">승률 높은순</option>
-          <option value="LOW_WINRATE">승률 낮은순</option>
-        </select>
-      </div>
+        <div class="metric-box">
+          <div class="metric-label">⚽ 최다 득점 선수</div>
+          <div class="metric-value" id="topScorerName">기록 없음</div>
+          <div class="metric-sub" id="topScorerDetail">-</div>
+        </div>
 
-      <div class="filter-actions">
-        <button class="btn-primary" id="btnSearch">조회</button>
-        <button class="btn-secondary" id="btnReset">필터 초기화</button>
+        <div class="metric-box">
+          <div class="metric-label">👟 최다 도움 선수</div>
+          <div class="metric-value" id="topAssisterName">기록 없음</div>
+          <div class="metric-sub" id="topAssisterDetail">-</div>
+        </div>
+
+        <div class="metric-box">
+          <div class="metric-label">🧤 최다 선방 선수</div>
+          <div class="metric-value" id="topDefenderName">기록 없음</div>
+          <div class="metric-sub" id="topDefenderDetail">-</div>
+        </div>
       </div>
     </div>
-
-    <!-- 5. 상대 전적 목록 및 상세 내역 영역 -->
-    <main class="content-area">
-      <div class="opponent-list" id="opponentList"></div>
-    </main>
-
-  </div>
+  </main>
 
   <script src="app.js"></script>
 </body>
