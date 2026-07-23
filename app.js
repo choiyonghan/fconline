@@ -73,7 +73,7 @@ async function handleNicknameClick(userObj, btnElement) {
   document.querySelectorAll(".btn-nickname").forEach(b => b.classList.remove("active"));
   btnElement.classList.add("active");
   
-  // 💡 [아코디언 DOM 보존] detailCard가 opponentList 안에 위치해 삭제되지 않도록 외부로 이동
+  // 아코디언 DOM 보존: detailCard가 opponentList 안에 위치해 삭제되지 않도록 외부로 이동
   const detailCard = document.getElementById("detailCard");
   const opponentList = document.getElementById("opponentList");
   if (detailCard && opponentList && opponentList.contains(detailCard)) {
@@ -435,7 +435,7 @@ function renderDetailCard(userNick, opponentNick, stat) {
     const timeA = new Date(dateStrA || 0).getTime();
     const timeB = new Date(dateStrB || 0).getTime();
 
-    return timeB - timeA; // 최신 경기(가장 큰 타임스탬프)가 0번 인덱스로 오도록 정렬
+    return timeB - timeA; // 최신 경기가 0번 인덱스로 오도록 정렬
   });
 
   const totalMatches = matches.length;
@@ -488,24 +488,41 @@ function renderDetailCard(userNick, opponentNick, stat) {
   let streakEl = document.getElementById("streakBadge");
   streakEl.className = "streak-badge"; 
 
-  // 조건 적용 (연승 -> 연패 -> 무승 -> 무패 순)
+  // 💡 [다중 기록 출력 조합 로직]
+  const badgeTexts = [];
+  let badgeColorClass = "neutral";
+
   if (winS >= 2) {
-    streakEl.innerText = `${winS}연승 중! 🔥`;
-    streakEl.classList.add("good");
-  } else if (loseS >= 2) {
-    streakEl.innerText = `${loseS}연패 중... 😭`;
-    streakEl.classList.add("bad");
-  } else if (winlessS >= 2) {
-    streakEl.innerText = `${winlessS}경기 무승 중 ⚠️`;
-    streakEl.classList.add("warning");
-  } else if (unbeatenS >= 2) {
-    streakEl.innerText = `${unbeatenS}경기 무패 중 🛡️`;
-    streakEl.classList.add("good");
+    badgeTexts.push(`${winS}연승 중! 🔥`);
+    badgeColorClass = "good";
+  }
+
+  if (loseS >= 2) {
+    badgeTexts.push(`${loseS}연패 중... 😭`);
+    badgeColorClass = "bad";
+  }
+
+  // Pure 연패가 아닐 때만 연속 무승 표기 (중복 문구 방지)
+  if (winlessS >= 2 && winlessS !== loseS) {
+    badgeTexts.push(`${winlessS}경기 연속 무승 중 ⚠️`);
+    if (badgeColorClass === "neutral") badgeColorClass = "warning";
+  }
+
+  // Pure 연승이 아닐 때만 연속 무패 표기 (중복 문구 방지)
+  if (unbeatenS >= 2 && unbeatenS !== winS) {
+    badgeTexts.push(`${unbeatenS}경기 연속 무패 중 🛡️`);
+    if (badgeColorClass === "neutral") badgeColorClass = "good";
+  }
+
+  if (badgeTexts.length > 0) {
+    streakEl.innerText = badgeTexts.join(" / ");
+    streakEl.classList.add(badgeColorClass);
   } else {
     streakEl.innerText = "연승/연패 없음";
     streakEl.classList.add("neutral");
   }
 
+  // --- 선수 통계 계산 ---
   const goalMap = {}, assistMap = {}, saveMap = {}, appMap = {};
 
   matches.forEach(m => {
