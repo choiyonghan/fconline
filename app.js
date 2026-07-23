@@ -7,7 +7,7 @@ let spidMetaMap = {};
 
 let currentSelectedUser = null;
 let rawMatchDetails = []; 
-let streakDataMap = {}; // user_opponent_streaks DB 데이터를 저장할 맵
+let streakDataMap = {}; // user_opponent_streaks DB 데이터 저장용
 
 // UTC 날짜 문자열을 KST Date 객체로 변환
 function parseToKst(utcDateString) {
@@ -92,7 +92,7 @@ async function handleNicknameClick(userObj, btnElement) {
   statusEl.innerText = "데이터 계산 중...";
 
   try {
-    // 💡 [DB 조회 동시 실행] match_details + user_opponent_streaks
+    // DB 조회: match_details + user_opponent_streaks
     const [matchRes, streakRes] = await Promise.all([
       db.from('match_details')
         .select('*, matches(match_date)')
@@ -104,9 +104,7 @@ async function handleNicknameClick(userObj, btnElement) {
     ]);
 
     if (matchRes.error) throw matchRes.error;
-    if (streakRes.error) console.warn("streak 테이블 조회 실패(또는 데이터 없음):", streakRes.error);
 
-    // streak 테이블 데이터를 상대 닉네임/OUID 키 기준 맵 형태로 변환
     streakDataMap = {};
     if (streakRes.data) {
       streakRes.data.forEach(item => {
@@ -354,11 +352,13 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
     const stat = opponentGroup[opName];
     const total = stat.total;
     const winRate = ((stat.wins/total)*100).toFixed(1);
+    
+    // 💡 [요청 반영 1] 서머리에 평균 득점/실점 항목 추가
+    const avgGoalsFor = (stat.goalsFor / total).toFixed(1);
+    const avgGoalsAgainst = (stat.goalsAgainst / total).toFixed(1);
     const avgPoss = (stat.posSum / total).toFixed(1);
-    const avgShoot = (stat.shootSum / total).toFixed(1);
-    const avgEffShoot = (stat.effShootSum / total).toFixed(1);
 
-    // 💡 [DB user_opponent_streaks 테이블 데이터 불러오기]
+    // DB user_opponent_streaks 테이블 데이터 불러오기
     const dbStreak = streakDataMap[opName] || {};
     const maxWin = dbStreak.max_win_streak ?? 0;
     const maxLose = dbStreak.max_lose_streak ?? 0;
@@ -408,23 +408,23 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
         <div class="op-winrate">승률 ${winRate}%</div>
       </div>
 
-      <!-- 기본 전적 지표 -->
+      <!-- 기본 전적 및 평균 득실점 서머리 -->
       <div class="op-card-stats">
         <div>
           <div style="color:var(--text-muted)">전적</div>
           <div class="op-stat-val"><span class="win-text">${stat.wins}승</span> ${stat.draws}무 <span class="lose-text">${stat.losses}패</span></div>
         </div>
         <div>
+          <div style="color:var(--text-muted)">⚽ 평균 득실</div>
+          <div class="op-stat-val">${avgGoalsFor}골 / ${avgGoalsAgainst}실</div>
+        </div>
+        <div>
           <div style="color:var(--text-muted)">평균 점유율</div>
           <div class="op-stat-val">${avgPoss}%</div>
         </div>
-        <div>
-          <div style="color:var(--text-muted)">유효/총 슈팅</div>
-          <div class="op-stat-val">${avgEffShoot} / ${avgShoot}</div>
-        </div>
       </div>
 
-      <!-- 🏆 [서머리 UI에 녹여낸 DB 최다 연속 기록 4종 세트] -->
+      <!-- 서머리 UI 통산 최다 연속 기록 칩 -->
       <div class="op-streak-summary">
         <div class="streak-item">
           <span class="streak-label">🔥 최다 연승</span>
@@ -463,7 +463,7 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
 
       card.after(detailCard);
 
-      renderDetailCard(selectedNickname, opName, stat, dbStreak);
+      renderDetailCard(selectedNickname, opName, stat);
     };
 
     container.appendChild(card);
@@ -473,7 +473,7 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
 }
 
 // 9. 상대별 상세 분석 렌더링
-function renderDetailCard(userNick, opponentNick, stat, dbStreak) {
+function renderDetailCard(userNick, opponentNick, stat) {
   const detailCard = document.getElementById("detailCard");
 
   // 실제 match_date 기준 최신순 정렬
@@ -505,7 +505,7 @@ function renderDetailCard(userNick, opponentNick, stat, dbStreak) {
     matchesContainer.appendChild(chip);
   });
 
-  // --- 1) 현재 진행 중인 최신 연속 기록 계산 ---
+  // --- 현재 진행 중인 연속 기록 계산 ---
   let winS = 0, loseS = 0, winlessS = 0, unbeatenS = 0;
 
   for (let m of matches) { if (m.match_result === '승') winS++; else break; }
@@ -538,24 +538,22 @@ function renderDetailCard(userNick, opponentNick, stat, dbStreak) {
     streakEl.classList.add("neutral");
   }
 
-  // --- 2) 🏆 [DB 테이블 데이터 반영] 통산 최다 기록 4종 ---
-  const maxWin = dbStreak.max_win_streak ?? 0;
-  const maxLose = dbStreak.max_lose_streak ?? 0;
-  const maxUnbeaten = dbStreak.max_unbeaten_streak ?? 0;
-  const maxWinless = dbStreak.max_winless_streak ?? 0;
+  // 💡 [요청 반영 2] 유효슛 지표 계산 및 반영
+  const avgShoots = (stat.shootSum / totalMatches).toFixed(1);
+  const avgEffShoots = (stat.effShootSum / totalMatches).toFixed(1);
+  const effRatio = stat.shootSum > 0 ? ((stat.effShootSum / stat.shootSum) * 100).toFixed(1) : 0;
 
-  const maxStreakValEl = document.getElementById("maxStreakValue");
-  const maxStreakSubEl = document.getElementById("maxStreakSub");
+  document.getElementById("avgShootsVal").innerText = `🎯 ${avgEffShoots} / ${avgShoots}회`;
+  document.getElementById("effShootRatioSub").innerText = `유효슈팅 비율: ${effRatio}% (총 ${stat.effShootSum}회)`;
 
-  if (maxStreakValEl) {
-    maxStreakValEl.innerHTML = `<span class="win-text">${maxWin}연승</span> / <span class="lose-text">${maxLose}연패</span>`;
-  }
-  if (maxStreakSubEl) {
-    maxStreakSubEl.innerText = `최다 무패 ${maxUnbeaten}경기 / 최다 무승 ${maxWinless}경기`;
-  }
+  // 평균 득실점 (상세에 그대로 유지)
+  const avgGoalsFor = (stat.goalsFor / totalMatches).toFixed(1);
+  const avgGoalsAgainst = (stat.goalsAgainst / totalMatches).toFixed(1);
+  document.getElementById("avgGoals").innerText = `⚽ ${avgGoalsFor} / 🛡️ ${avgGoalsAgainst}`;
+  document.getElementById("totalGoalsSub").innerText = `총 ${stat.goalsFor}득 / ${stat.goalsAgainst}실`;
 
   // --- 선수 통계 계산 ---
-  const goalMap = {}, assistMap = {}, saveMap = {}, appMap = {};
+  const goalMap = {}, assistMap = {}, saveMap = {}, defensiveCoreMap = {}, appMap = {};
 
   matches.forEach(m => {
     const squad = m.player_squad || m.player_squid || [];
@@ -575,6 +573,13 @@ function renderDetailCard(userNick, opponentNick, stat, dbStreak) {
 
       const sv = Number(st.save || st.defending || 0); 
       if (sv > 0) saveMap[spId] = (saveMap[spId] || 0) + sv;
+
+      // 💡 [요청 반영 3] 수비의 핵 (태클 + 인터셉트 + 블락 수치 합산)
+      const t = Number(st.tackle || 0);
+      const ic = Number(st.intercept || 0);
+      const bl = Number(st.block || 0);
+      const defScore = t + ic + bl;
+      if (defScore > 0) defensiveCoreMap[spId] = (defensiveCoreMap[spId] || 0) + defScore;
     });
   });
 
@@ -587,11 +592,7 @@ function renderDetailCard(userNick, opponentNick, stat, dbStreak) {
   const topScorer = getTopPlayer(goalMap);
   const topAssister = getTopPlayer(assistMap);
   const topSaver = getTopPlayer(saveMap);
-
-  const avgGoalsFor = (stat.goalsFor / totalMatches).toFixed(1);
-  const avgGoalsAgainst = (stat.goalsAgainst / totalMatches).toFixed(1);
-  document.getElementById("avgGoals").innerText = `⚽ ${avgGoalsFor} / 🛡️ ${avgGoalsAgainst}`;
-  document.getElementById("totalGoalsSub").innerText = `총 ${stat.goalsFor}득 / ${stat.goalsAgainst}실`;
+  const topDefensiveCore = getTopPlayer(defensiveCoreMap);
 
   const setMetric = (nameId, detailId, topObj, unit) => {
     if (topObj.id && appMap[topObj.id]) {
@@ -607,6 +608,7 @@ function renderDetailCard(userNick, opponentNick, stat, dbStreak) {
   setMetric("topScorerName", "topScorerDetail", topScorer, "골");
   setMetric("topAssisterName", "topAssisterDetail", topAssister, "도움");
   setMetric("topDefenderName", "topDefenderDetail", topSaver, "선방");
+  setMetric("topDefensiveCoreName", "topDefensiveCoreDetail", topDefensiveCore, "회 차단");
 
   detailCard.style.display = "block";
   detailCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
