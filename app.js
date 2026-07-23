@@ -7,6 +7,7 @@ let spidMetaMap = {};
 
 let currentSelectedUser = null;
 let rawMatchDetails = []; 
+let streakDataMap = {}; // user_opponent_streaks DB 데이터를 저장할 맵
 
 // UTC 날짜 문자열을 KST Date 객체로 변환
 function parseToKst(utcDateString) {
@@ -73,7 +74,7 @@ async function handleNicknameClick(userObj, btnElement) {
   document.querySelectorAll(".btn-nickname").forEach(b => b.classList.remove("active"));
   btnElement.classList.add("active");
   
-  // 아코디언 DOM 보존: detailCard가 opponentList 안에 위치해 삭제되지 않도록 외부로 이동
+  // 아코디언 DOM 위치 보존
   const detailCard = document.getElementById("detailCard");
   const opponentList = document.getElementById("opponentList");
   if (detailCard && opponentList && opponentList.contains(detailCard)) {
@@ -91,12 +92,30 @@ async function handleNicknameClick(userObj, btnElement) {
   statusEl.innerText = "데이터 계산 중...";
 
   try {
-    const { data: matchDetails, error } = await db.from('match_details')
-      .select('*, matches(match_date)')
-      .eq('ouid', userObj.ouid) 
-      .order('id', { ascending: false });
+    // 💡 [DB 조회 동시 실행] match_details + user_opponent_streaks
+    const [matchRes, streakRes] = await Promise.all([
+      db.from('match_details')
+        .select('*, matches(match_date)')
+        .eq('ouid', userObj.ouid)
+        .order('id', { ascending: false }),
+      db.from('user_opponent_streaks')
+        .select('*')
+        .eq('ouid', userObj.ouid)
+    ]);
 
-    if (error) throw error;
+    if (matchRes.error) throw matchRes.error;
+    if (streakRes.error) console.warn("streak 테이블 조회 실패(또는 데이터 없음):", streakRes.error);
+
+    // streak 테이블 데이터를 상대 닉네임/OUID 키 기준 맵 형태로 변환
+    streakDataMap = {};
+    if (streakRes.data) {
+      streakRes.data.forEach(item => {
+        const key = item.opponent_nick || item.opponent_ouid;
+        if (key) streakDataMap[key] = item;
+      });
+    }
+
+    const matchDetails = matchRes.data;
     if (!matchDetails || matchDetails.length === 0) {
       statusEl.innerText = "전적 데이터가 없습니다.";
       return;
@@ -323,7 +342,7 @@ function renderOverallStats(userNick, matches) {
   `;
 }
 
-// 8. 상대 카드 리스트 렌더링
+// 8. 상대 카드 리스트 (서머리 UI) 렌더링
 function renderOpponentCards(selectedNickname, opponentGroup) {
   const container = document.getElementById("opponentList");
   container.innerHTML = "";
@@ -338,6 +357,13 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
     const avgPoss = (stat.posSum / total).toFixed(1);
     const avgShoot = (stat.shootSum / total).toFixed(1);
     const avgEffShoot = (stat.effShootSum / total).toFixed(1);
+
+    // 💡 [DB user_opponent_streaks 테이블 데이터 불러오기]
+    const dbStreak = streakDataMap[opName] || {};
+    const maxWin = dbStreak.max_win_streak ?? 0;
+    const maxLose = dbStreak.max_lose_streak ?? 0;
+    const maxUnbeaten = dbStreak.max_unbeaten_streak ?? 0;
+    const maxWinless = dbStreak.max_winless_streak ?? 0;
 
     const isOpWook = WOOK_NICKNAMES.includes(opName);
     const hasWook = isSelectedWook || isOpWook;
@@ -381,6 +407,8 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
         <div class="op-name">${opName}</div>
         <div class="op-winrate">승률 ${winRate}%</div>
       </div>
+
+      <!-- 기본 전적 지표 -->
       <div class="op-card-stats">
         <div>
           <div style="color:var(--text-muted)">전적</div>
@@ -395,6 +423,27 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
           <div class="op-stat-val">${avgEffShoot} / ${avgShoot}</div>
         </div>
       </div>
+
+      <!-- 🏆 [서머리 UI에 녹여낸 DB 최다 연속 기록 4종 세트] -->
+      <div class="op-streak-summary">
+        <div class="streak-item">
+          <span class="streak-label">🔥 최다 연승</span>
+          <span class="streak-val win-text">${maxWin}연승</span>
+        </div>
+        <div class="streak-item">
+          <span class="streak-label">😭 최다 연패</span>
+          <span class="streak-val lose-text">${maxLose}연패</span>
+        </div>
+        <div class="streak-item">
+          <span class="streak-label">🛡️ 최다 무패</span>
+          <span class="streak-val" style="color:#1d4ed8;">${maxUnbeaten}경기</span>
+        </div>
+        <div class="streak-item">
+          <span class="streak-label">⚠️ 최다 무승</span>
+          <span class="streak-val" style="color:#b45309;">${maxWinless}경기</span>
+        </div>
+      </div>
+
       ${wookHtml}
     `;
 
@@ -414,7 +463,7 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
 
       card.after(detailCard);
 
-      renderDetailCard(selectedNickname, opName, stat);
+      renderDetailCard(selectedNickname, opName, stat, dbStreak);
     };
 
     container.appendChild(card);
@@ -424,18 +473,15 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
 }
 
 // 9. 상대별 상세 분석 렌더링
-function renderDetailCard(userNick, opponentNick, stat) {
+function renderDetailCard(userNick, opponentNick, stat, dbStreak) {
   const detailCard = document.getElementById("detailCard");
 
-  // 💡 [실제 match_date 기준 최신순 정렬 보장]
+  // 실제 match_date 기준 최신순 정렬
   const matches = [...stat.matches].sort((a, b) => {
     const dateStrA = a.matches ? a.matches.match_date : (a.real_match_date || a.match_date);
     const dateStrB = b.matches ? b.matches.match_date : (b.real_match_date || b.match_date);
 
-    const timeA = new Date(dateStrA || 0).getTime();
-    const timeB = new Date(dateStrB || 0).getTime();
-
-    return timeB - timeA; // 최신 경기가 0번 인덱스로 오도록 정렬
+    return new Date(dateStrB || 0).getTime() - new Date(dateStrA || 0).getTime();
   });
 
   const totalMatches = matches.length;
@@ -459,11 +505,8 @@ function renderDetailCard(userNick, opponentNick, stat) {
     matchesContainer.appendChild(chip);
   });
 
-  // --- 1) 최신순 연속 기록 계산 (현재 진행 중인 연속 기록) ---
-  let winS = 0;      // 연승
-  let loseS = 0;     // 연패
-  let winlessS = 0;  // 무승 (승리가 없음)
-  let unbeatenS = 0; // 무패 (패배가 없음)
+  // --- 1) 현재 진행 중인 최신 연속 기록 계산 ---
+  let winS = 0, loseS = 0, winlessS = 0, unbeatenS = 0;
 
   for (let m of matches) { if (m.match_result === '승') winS++; else break; }
   for (let m of matches) { if (m.match_result === '패') loseS++; else break; }
@@ -476,21 +519,12 @@ function renderDetailCard(userNick, opponentNick, stat) {
   const badgeTexts = [];
   let badgeColorClass = "neutral";
 
-  if (winS >= 2) {
-    badgeTexts.push(`${winS}연승 중! 🔥`);
-    badgeColorClass = "good";
-  }
-
-  if (loseS >= 2) {
-    badgeTexts.push(`${loseS}연패 중... 😭`);
-    badgeColorClass = "bad";
-  }
-
+  if (winS >= 2) { badgeTexts.push(`${winS}연승 중! 🔥`); badgeColorClass = "good"; }
+  if (loseS >= 2) { badgeTexts.push(`${loseS}연패 중... 😭`); badgeColorClass = "bad"; }
   if (winlessS >= 2 && winlessS !== loseS) {
     badgeTexts.push(`${winlessS}경기 연속 무승 중 ⚠️`);
     if (badgeColorClass === "neutral") badgeColorClass = "warning";
   }
-
   if (unbeatenS >= 2 && unbeatenS !== winS) {
     badgeTexts.push(`${unbeatenS}경기 연속 무패 중 🛡️`);
     if (badgeColorClass === "neutral") badgeColorClass = "good";
@@ -504,37 +538,20 @@ function renderDetailCard(userNick, opponentNick, stat) {
     streakEl.classList.add("neutral");
   }
 
-  // --- 2) 🔥 [신규 추가] 통산 최다 연승 / 최다 연패 연산 ---
-  const chronologicalMatches = [...matches].reverse(); // 과거 -> 최신순 변환
-
-  let maxWinStreak = 0;
-  let maxLoseStreak = 0;
-  let currentWinStreak = 0;
-  let currentLoseStreak = 0;
-
-  chronologicalMatches.forEach(m => {
-    if (m.match_result === "승") {
-      currentWinStreak++;
-      currentLoseStreak = 0;
-      if (currentWinStreak > maxWinStreak) maxWinStreak = currentWinStreak;
-    } else if (m.match_result === "패") {
-      currentLoseStreak++;
-      currentWinStreak = 0;
-      if (currentLoseStreak > maxLoseStreak) maxLoseStreak = currentLoseStreak;
-    } else {
-      currentWinStreak = 0;
-      currentLoseStreak = 0;
-    }
-  });
+  // --- 2) 🏆 [DB 테이블 데이터 반영] 통산 최다 기록 4종 ---
+  const maxWin = dbStreak.max_win_streak ?? 0;
+  const maxLose = dbStreak.max_lose_streak ?? 0;
+  const maxUnbeaten = dbStreak.max_unbeaten_streak ?? 0;
+  const maxWinless = dbStreak.max_winless_streak ?? 0;
 
   const maxStreakValEl = document.getElementById("maxStreakValue");
   const maxStreakSubEl = document.getElementById("maxStreakSub");
 
   if (maxStreakValEl) {
-    maxStreakValEl.innerHTML = `<span class="win-text">${maxWinStreak}연승</span> / <span class="lose-text">${maxLoseStreak}연패</span>`;
+    maxStreakValEl.innerHTML = `<span class="win-text">${maxWin}연승</span> / <span class="lose-text">${maxLose}연패</span>`;
   }
   if (maxStreakSubEl) {
-    maxStreakSubEl.innerText = `통산 최고 기록`;
+    maxStreakSubEl.innerText = `최다 무패 ${maxUnbeaten}경기 / 최다 무승 ${maxWinless}경기`;
   }
 
   // --- 선수 통계 계산 ---
