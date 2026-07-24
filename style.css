@@ -75,6 +75,33 @@ body {
   margin-bottom: 10px;
 }
 
+/* 🎮 매치 타입 선택 버튼 */
+.match-type-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-match-type {
+  flex: 1;
+  padding: 10px 0;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.btn-match-type.active {
+  background: var(--primary-color);
+  color: #ffffff;
+  border-color: var(--primary-color);
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.3);
+}
+
 /* 👤 유저 선택 버튼 */
 .nickname-buttons-grid {
   display: grid;
@@ -350,6 +377,34 @@ body {
   border: 1px solid var(--border-color);
 }
 
+.metric-box.full-width {
+  grid-column: span 2;
+}
+
 .metric-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; }
 .metric-value { font-size: 0.85rem; font-weight: 800; margin: 3px 0 1px; }
 .metric-sub { font-size: 0.7rem; color: #64748b; }
+
+.metric-top-list {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.75rem;
+}
+
+.top-player-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.top-player-name {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.top-player-stat {
+  font-size: 0.72rem;
+  color: #64748b;
+}
