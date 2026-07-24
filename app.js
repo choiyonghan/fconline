@@ -189,18 +189,17 @@ async function loadUserMatchData(userObj) {
   statusEl.innerText = `[${typeText}] 데이터 계산 중...`;
 
   try {
-    // DB Query 준비 (match_type 조건 부여)
     let matchQuery = db.from('match_details')
       .select('*, matches(match_date)')
-      .eq('ouid', userObj.ouid)
-      .order('id', { ascending: false });
+      .eq('ouid', userObj.ouid);
 
-    // match_type 필터링 (DB에 match_type 컬럼이 있는 경우 적용, 예: '50' 또는 'custom')
     if (currentMatchType === "custom") {
       matchQuery = matchQuery.or('match_type.eq.50,match_type.eq.custom,match_type.is.null');
     } else {
-      matchQuery = matchQuery.or('match_type.eq.60,match_type.eq.official');
+      matchQuery = matchQuery.or('match_type.eq.52,match_type.eq.60,match_type.eq.official');
     }
+
+    matchQuery = matchQuery.order('id', { ascending: false });
 
     const [matchRes, streakRes] = await Promise.all([
       matchQuery,
@@ -237,7 +236,7 @@ async function loadUserMatchData(userObj) {
     statusEl.innerText = `[${typeText}] 분석 완료! 상대를 선택해 상세 전적을 확인하세요.`;
   } catch (err) {
     console.error("매치 데이터 로드 에러:", err);
-    statusEl.innerText = "오류가 발생했습니다.";
+    statusEl.innerText = "데이터 조회 중 오류가 발생했습니다.";
   }
 }
 
@@ -337,7 +336,7 @@ function processAndRenderMatches(matchList) {
   renderOpponentCards(currentSelectedUser.nickname, opponentGroup);
 }
 
-// 7. 전체 종합 전적 렌더링 (TOP 3 적용)
+// 7. 전체 종합 전적 렌더링
 function renderOverallStats(userNick, matches) {
   const container = document.getElementById("overallStatsContainer");
   if (!container) return;
@@ -392,7 +391,6 @@ function renderOverallStats(userNick, matches) {
   const avgShoot = (shootSum / totalMatches).toFixed(1);
   const avgEffShoot = (effShootSum / totalMatches).toFixed(1);
 
-  // TOP 3 렌더링
   const topScorersHtml = getTop3Players(goalMap, appMap, "골");
   const topAssistersHtml = getTop3Players(assistMap, appMap, "도움");
   const topSaversHtml = getTop3Players(saveMap, appMap, "선방");
@@ -442,7 +440,7 @@ function renderOverallStats(userNick, matches) {
   `;
 }
 
-// 8. 상대 카드 리스트 (서머리 UI) 렌더링
+// 8. 상대 카드 리스트 (서머리 UI) 렌더링 (⭐ 서머리 간소화 반영)
 function renderOpponentCards(selectedNickname, opponentGroup) {
   const container = document.getElementById("opponentList");
   container.innerHTML = "";
@@ -454,12 +452,7 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
     const stat = opponentGroup[opName];
     const total = stat.total;
     const winRate = ((stat.wins/total)*100).toFixed(1);
-    
-    const avgGoalsFor = (stat.goalsFor / total).toFixed(1);
-    const avgGoalsAgainst = (stat.goalsAgainst / total).toFixed(1);
-    const avgPoss = (stat.posSum / total).toFixed(1);
 
-    // DB streak 정보 및 무패/무승 세부 계산
     const dbStreak = streakDataMap[opName] || {};
     const maxWin = dbStreak.max_win_streak ?? 0;
     const maxLose = dbStreak.max_lose_streak ?? 0;
@@ -509,23 +502,15 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
         <div class="op-winrate">승률 ${winRate}%</div>
       </div>
 
-      <!-- 기본 전적 및 평균 득실점 서머리 -->
-      <div class="op-card-stats">
+      <!-- 서머리 전적 (평균 득실점 및 점유율 제거로 가독성 향상) -->
+      <div class="op-card-stats" style="grid-template-columns: 1fr;">
         <div>
-          <div style="color:var(--text-muted)">전적</div>
-          <div class="op-stat-val"><span class="win-text">${stat.wins}승</span> ${stat.draws}무 <span class="lose-text">${stat.losses}패</span></div>
-        </div>
-        <div>
-          <div style="color:var(--text-muted)">⚽ 평균 득실</div>
-          <div class="op-stat-val">${avgGoalsFor}골 / ${avgGoalsAgainst}실</div>
-        </div>
-        <div>
-          <div style="color:var(--text-muted)">평균 점유율</div>
-          <div class="op-stat-val">${avgPoss}%</div>
+          <div style="color:var(--text-muted); font-size:0.75rem;">상대 전적</div>
+          <div class="op-stat-val" style="font-size: 1.05rem;"><span class="win-text">${stat.wins}승</span> ${stat.draws}무 <span class="lose-text">${stat.losses}패</span> (총 ${total}전)</div>
         </div>
       </div>
 
-      <!-- 서머리 UI 통산 최다 연속 기록 칩 ([승/무/패] 세부 기록 포함) -->
+      <!-- 서머리 UI 통산 최다 연속 기록 칩 -->
       <div class="op-streak-summary">
         <div class="streak-item">
           <span class="streak-label">🔥 최다 연승</span>
@@ -573,11 +558,10 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
   container.style.display = "flex";
 }
 
-// 9. 상대별 상세 분석 렌더링 (TOP 3 및 세부 기록 추가)
+// 9. 상대별 상세 분석 렌더링 (⭐ 평균 점유율 카드 추가)
 function renderDetailCard(userNick, opponentNick, stat) {
   const detailCard = document.getElementById("detailCard");
 
-  // 최신순 정렬
   const matches = [...stat.matches].sort((a, b) => {
     const dateStrA = a.matches ? a.matches.match_date : (a.real_match_date || a.match_date);
     const dateStrB = b.matches ? b.matches.match_date : (b.real_match_date || b.match_date);
@@ -591,7 +575,6 @@ function renderDetailCard(userNick, opponentNick, stat) {
   document.getElementById("matchCountBadge").innerText = `총 ${totalMatches}경기`;
   document.getElementById("winRateBadge").innerText = `승률 ${((stat.wins/totalMatches)*100).toFixed(1)}%`;
 
-  // --- 최근 경기 칩 렌더링 ---
   const matchesContainer = document.getElementById("recentMatchesContainer");
   matchesContainer.innerHTML = "";
 
@@ -606,7 +589,6 @@ function renderDetailCard(userNick, opponentNick, stat) {
     matchesContainer.appendChild(chip);
   });
 
-  // --- 현재 진행 중인 연속 기록 및 [승/무/패] 카운트 연산 ---
   let winS = 0, loseS = 0;
   let winlessS = 0, winlessD = 0, winlessL = 0;
   let unbeatenS = 0, unbeatenW = 0, unbeatenD = 0;
@@ -668,6 +650,13 @@ function renderDetailCard(userNick, opponentNick, stat) {
   const avgGoalsAgainst = (stat.goalsAgainst / totalMatches).toFixed(1);
   document.getElementById("avgGoals").innerText = `⚽ ${avgGoalsFor} / 🛡️ ${avgGoalsAgainst}`;
   document.getElementById("totalGoalsSub").innerText = `총 ${stat.goalsFor}득 / ${stat.goalsAgainst}실`;
+
+  // 평균 점유율 (상세 영역으로 이동)
+  const avgPoss = (stat.posSum / totalMatches).toFixed(1);
+  const avgPossEl = document.getElementById("avgPossessionVal");
+  if (avgPossEl) {
+    avgPossEl.innerText = `📊 ${avgPoss}%`;
+  }
 
   // --- 선수별 스탯 TOP 3 집계 ---
   const goalMap = {}, assistMap = {}, saveMap = {}, defensiveCoreMap = {}, appMap = {};
