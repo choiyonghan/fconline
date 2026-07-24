@@ -440,7 +440,7 @@ function renderOverallStats(userNick, matches) {
   `;
 }
 
-// 8. 상대 카드 리스트 (서머리 UI) 렌더링 (⭐ 서머리 간소화 반영)
+// 8. 상대 카드 리스트 (서머리 UI) 렌더링
 function renderOpponentCards(selectedNickname, opponentGroup) {
   const container = document.getElementById("opponentList");
   container.innerHTML = "";
@@ -452,6 +452,10 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
     const stat = opponentGroup[opName];
     const total = stat.total;
     const winRate = ((stat.wins/total)*100).toFixed(1);
+    
+    const avgGoalsFor = (stat.goalsFor / total).toFixed(1);
+    const avgGoalsAgainst = (stat.goalsAgainst / total).toFixed(1);
+    const avgPoss = (stat.posSum / total).toFixed(1);
 
     const dbStreak = streakDataMap[opName] || {};
     const maxWin = dbStreak.max_win_streak ?? 0;
@@ -502,11 +506,19 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
         <div class="op-winrate">승률 ${winRate}%</div>
       </div>
 
-      <!-- 서머리 전적 (평균 득실점 및 점유율 제거로 가독성 향상) -->
-      <div class="op-card-stats" style="grid-template-columns: 1fr;">
+      <!-- 기본 전적 및 평균 득실점 서머리 -->
+      <div class="op-card-stats">
         <div>
-          <div style="color:var(--text-muted); font-size:0.75rem;">상대 전적</div>
-          <div class="op-stat-val" style="font-size: 1.05rem;"><span class="win-text">${stat.wins}승</span> ${stat.draws}무 <span class="lose-text">${stat.losses}패</span> (총 ${total}전)</div>
+          <div style="color:var(--text-muted)">전적</div>
+          <div class="op-stat-val"><span class="win-text">${stat.wins}승</span> ${stat.draws}무 <span class="lose-text">${stat.losses}패</span></div>
+        </div>
+        <div>
+          <div style="color:var(--text-muted)">⚽ 평균 득실</div>
+          <div class="op-stat-val">${avgGoalsFor}골 / ${avgGoalsAgainst}실</div>
+        </div>
+        <div>
+          <div style="color:var(--text-muted)">평균 점유율</div>
+          <div class="op-stat-val">${avgPoss}%</div>
         </div>
       </div>
 
@@ -558,7 +570,7 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
   container.style.display = "flex";
 }
 
-// 9. 상대별 상세 분석 렌더링 (⭐ 평균 점유율 카드 추가)
+// 9. 상대별 상세 분석 렌더링
 function renderDetailCard(userNick, opponentNick, stat) {
   const detailCard = document.getElementById("detailCard");
 
@@ -637,7 +649,6 @@ function renderDetailCard(userNick, opponentNick, stat) {
     streakEl.classList.add("neutral");
   }
 
-  // 슈팅 / 유효 슈팅
   const avgShoots = (stat.shootSum / totalMatches).toFixed(1);
   const avgEffShoots = (stat.effShootSum / totalMatches).toFixed(1);
   const effRatio = stat.shootSum > 0 ? ((stat.effShootSum / stat.shootSum) * 100).toFixed(1) : 0;
@@ -645,20 +656,11 @@ function renderDetailCard(userNick, opponentNick, stat) {
   document.getElementById("avgShootsVal").innerText = `🎯 ${avgEffShoots} / ${avgShoots}회`;
   document.getElementById("effShootRatioSub").innerText = `유효슈팅 비율: ${effRatio}% (총 ${stat.effShootSum}회)`;
 
-  // 평균 득실점
   const avgGoalsFor = (stat.goalsFor / totalMatches).toFixed(1);
   const avgGoalsAgainst = (stat.goalsAgainst / totalMatches).toFixed(1);
   document.getElementById("avgGoals").innerText = `⚽ ${avgGoalsFor} / 🛡️ ${avgGoalsAgainst}`;
   document.getElementById("totalGoalsSub").innerText = `총 ${stat.goalsFor}득 / ${stat.goalsAgainst}실`;
 
-  // 평균 점유율 (상세 영역으로 이동)
-  const avgPoss = (stat.posSum / totalMatches).toFixed(1);
-  const avgPossEl = document.getElementById("avgPossessionVal");
-  if (avgPossEl) {
-    avgPossEl.innerText = `📊 ${avgPoss}%`;
-  }
-
-  // --- 선수별 스탯 TOP 3 집계 ---
   const goalMap = {}, assistMap = {}, saveMap = {}, defensiveCoreMap = {}, appMap = {};
 
   matches.forEach(m => {
