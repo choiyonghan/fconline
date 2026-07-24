@@ -6,6 +6,7 @@ const WOOK_NICKNAMES = ["지린성에사는욱구", "욱냥0I"];
 let spidMetaMap = {}; 
 
 let currentSelectedUser = null;
+let currentMatchType = "custom"; // DEFAULT: 커스텀 매치 ('custom' | 'official')
 let rawMatchDetails = []; 
 let streakDataMap = {}; // user_opponent_streaks DB 데이터 저장용
 
@@ -39,7 +40,76 @@ function getPlayerName(spId) {
   return spidMetaMap[spId] || `선수(ID:${spId})`;
 }
 
-// 2. 유저 로드 및 버튼 생성
+// TOP 3 목록 생성 도움 함수
+function getTop3Players(map, appMap, unit) {
+  const sorted = Object.keys(map)
+    .map(id => ({ id, count: map[id], apps: appMap[id] || 0 }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+
+  if (sorted.length === 0) return `<div style="color:#888;">기록 없음</div>`;
+
+  return sorted.map((p, idx) => {
+    const name = getPlayerName(p.id);
+    const avg = p.apps > 0 ? (p.count / p.apps).toFixed(2) : 0;
+    return `
+      <div class="top-player-item">
+        <span class="top-player-name">${idx + 1}. ${name}</span>
+        <span class="top-player-stat">${p.apps}경기 ${p.count}${unit} (평균 ${avg})</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// 연속 무패 / 무승 시의 세부 [승/무/패] 성적 연산 도움 함수
+function computeStreakDetails(matches) {
+  let maxUnbeaten = 0, maxUnbeatenDetail = "0승 0무";
+  let maxWinless = 0, maxWinlessDetail = "0무 0패";
+
+  let curUnbeaten = 0, curUnbeatenW = 0, curUnbeatenD = 0;
+  let curWinless = 0, curWinlessD = 0, curWinlessL = 0;
+
+  // 오래된 경기부터 순회하며 연속 연승/무패 계산
+  const sortedAsc = [...matches].sort((a, b) => {
+    const dA = new Date(a.real_match_date || 0);
+    const dB = new Date(b.real_match_date || 0);
+    return dA - dB;
+  });
+
+  sortedAsc.forEach(m => {
+    const res = m.match_result;
+
+    // 무패 (승 또는 무)
+    if (res === '승' || res === '무') {
+      curUnbeaten++;
+      if (res === '승') curUnbeatenW++;
+      if (res === '무') curUnbeatenD++;
+      if (curUnbeaten > maxUnbeaten) {
+        maxUnbeaten = curUnbeaten;
+        maxUnbeatenDetail = `${curUnbeatenW}승 ${curUnbeatenD}무`;
+      }
+    } else {
+      curUnbeaten = 0; curUnbeatenW = 0; curUnbeatenD = 0;
+    }
+
+    // 무승 (무 또는 패)
+    if (res === '무' || res === '패') {
+      curWinless++;
+      if (res === '무') curWinlessD++;
+      if (res === '패') curWinlessL++;
+      if (curWinless > maxWinless) {
+        maxWinless = curWinless;
+        maxWinlessDetail = `${curWinlessD}무 ${curWinlessL}패`;
+      }
+    } else {
+      curWinless = 0; curWinlessD = 0; curWinlessL = 0;
+    }
+  });
+
+  return { maxUnbeaten, maxUnbeatenDetail, maxWinless, maxWinlessDetail };
+}
+
+// 2. 초기화 및 이벤트 리스너
 async function fetchUsersAndInitButtons() {
   const statusEl = document.getElementById("status");
   const container = document.getElementById("nicknameButtons");
@@ -47,6 +117,13 @@ async function fetchUsersAndInitButtons() {
   
   document.getElementById("btnSearchDate").addEventListener("click", applyDateFilter);
   document.getElementById("btnResetDate").addEventListener("click", resetDateFilter);
+
+  // 매치 타입 선택 버튼 이벤트 등록
+  const btnCustom = document.getElementById("btnMatchTypeCustom");
+  const btnOfficial = document.getElementById("btnMatchTypeOfficial");
+
+  btnCustom.addEventListener("click", () => handleMatchTypeChange("custom"));
+  btnOfficial.addEventListener("click", () => handleMatchTypeChange("official"));
 
   try {
     const { data: users, error } = await db.from('users').select('nickname, ouid').order('nickname', { ascending: true });
@@ -66,13 +143,32 @@ async function fetchUsersAndInitButtons() {
   }
 }
 
+// 매치 타입 변경 핸들러
+function handleMatchTypeChange(type) {
+  if (currentMatchType === type) return;
+  currentMatchType = type;
+
+  document.getElementById("btnMatchTypeCustom").classList.toggle("active", type === "custom");
+  document.getElementById("btnMatchTypeOfficial").classList.toggle("active", type === "official");
+
+  if (currentSelectedUser) {
+    loadUserMatchData(currentSelectedUser);
+  }
+}
+
 // 3. 닉네임 클릭 처리
 async function handleNicknameClick(userObj, btnElement) {
-  const statusEl = document.getElementById("status");
   currentSelectedUser = userObj;
   
   document.querySelectorAll(".btn-nickname").forEach(b => b.classList.remove("active"));
   btnElement.classList.add("active");
+
+  loadUserMatchData(userObj);
+}
+
+// 유저 매치 데이터 로드
+async function loadUserMatchData(userObj) {
+  const statusEl = document.getElementById("status");
   
   // 아코디언 DOM 위치 보존
   const detailCard = document.getElementById("detailCard");
@@ -89,15 +185,25 @@ async function handleNicknameClick(userObj, btnElement) {
   document.getElementById("startDate").value = "";
   document.getElementById("endDate").value = "";
   
-  statusEl.innerText = "데이터 계산 중...";
+  const typeText = currentMatchType === "custom" ? "커스텀 매치" : "공식 경기";
+  statusEl.innerText = `[${typeText}] 데이터 계산 중...`;
 
   try {
-    // DB 조회: match_details + user_opponent_streaks
+    // DB Query 준비 (match_type 조건 부여)
+    let matchQuery = db.from('match_details')
+      .select('*, matches(match_date)')
+      .eq('ouid', userObj.ouid)
+      .order('id', { ascending: false });
+
+    // match_type 필터링 (DB에 match_type 컬럼이 있는 경우 적용, 예: '50' 또는 'custom')
+    if (currentMatchType === "custom") {
+      matchQuery = matchQuery.or('match_type.eq.50,match_type.eq.custom,match_type.is.null');
+    } else {
+      matchQuery = matchQuery.or('match_type.eq.60,match_type.eq.official');
+    }
+
     const [matchRes, streakRes] = await Promise.all([
-      db.from('match_details')
-        .select('*, matches(match_date)')
-        .eq('ouid', userObj.ouid)
-        .order('id', { ascending: false }),
+      matchQuery,
       db.from('user_opponent_streaks')
         .select('*')
         .eq('ouid', userObj.ouid)
@@ -115,7 +221,7 @@ async function handleNicknameClick(userObj, btnElement) {
 
     const matchDetails = matchRes.data;
     if (!matchDetails || matchDetails.length === 0) {
-      statusEl.innerText = "전적 데이터가 없습니다.";
+      statusEl.innerText = `[${typeText}] 전적 데이터가 없습니다.`;
       return;
     }
 
@@ -128,7 +234,7 @@ async function handleNicknameClick(userObj, btnElement) {
     });
 
     processAndRenderMatches(rawMatchDetails);
-    statusEl.innerText = `분석 완료! 상대를 선택해 상세 전적을 확인하세요.`;
+    statusEl.innerText = `[${typeText}] 분석 완료! 상대를 선택해 상세 전적을 확인하세요.`;
   } catch (err) {
     console.error("매치 데이터 로드 에러:", err);
     statusEl.innerText = "오류가 발생했습니다.";
@@ -231,7 +337,7 @@ function processAndRenderMatches(matchList) {
   renderOpponentCards(currentSelectedUser.nickname, opponentGroup);
 }
 
-// 7. 전체 종합 전적 렌더링
+// 7. 전체 종합 전적 렌더링 (TOP 3 적용)
 function renderOverallStats(userNick, matches) {
   const container = document.getElementById("overallStatsContainer");
   if (!container) return;
@@ -286,23 +392,10 @@ function renderOverallStats(userNick, matches) {
   const avgShoot = (shootSum / totalMatches).toFixed(1);
   const avgEffShoot = (effShootSum / totalMatches).toFixed(1);
 
-  const getTopPlayer = (map) => {
-    let topId = null, maxVal = 0;
-    for (const id in map) { if (map[id] > maxVal) { maxVal = map[id]; topId = id; } }
-    return { id: topId, count: maxVal };
-  };
-
-  const topScorer = getTopPlayer(goalMap);
-  const topAssister = getTopPlayer(assistMap);
-  const topSaver = getTopPlayer(saveMap);
-
-  const getTopText = (topObj, unit) => {
-    if (!topObj.id || !appMap[topObj.id]) return `<span style="color:#888;">기록 없음</span>`;
-    const apps = appMap[topObj.id];
-    const name = getPlayerName(topObj.id);
-    const avg = (topObj.count / apps).toFixed(2);
-    return `<strong>${name}</strong> (${apps}경기 ${topObj.count}${unit} / 경기당 ${avg}${unit})`;
-  };
+  // TOP 3 렌더링
+  const topScorersHtml = getTop3Players(goalMap, appMap, "골");
+  const topAssistersHtml = getTop3Players(assistMap, appMap, "도움");
+  const topSaversHtml = getTop3Players(saveMap, appMap, "선방");
 
   container.innerHTML = `
     <div class="card" style="border: 2px solid #f59e0b; background-color: #fffdf5;">
@@ -331,10 +424,19 @@ function renderOverallStats(userNick, matches) {
       
       <hr style="border:0; border-top:1px dashed #cbd5e1; margin: 10px 0;">
       
-      <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem;">
-        <div>⚽ <span style="color:#64748b;">최다 득점:</span> ${getTopText(topScorer, '골')}</div>
-        <div>👟 <span style="color:#64748b;">최다 도움:</span> ${getTopText(topAssister, '도움')}</div>
-        <div>🧤 <span style="color:#64748b;">최다 선방:</span> ${getTopText(topSaver, '선방')}</div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div>
+          <div style="font-weight:700; font-size:0.8rem; color:#334155; margin-bottom:2px;">⚽ 최다 득점 TOP 3</div>
+          ${topScorersHtml}
+        </div>
+        <div>
+          <div style="font-weight:700; font-size:0.8rem; color:#334155; margin-bottom:2px;">👟 최다 도움 TOP 3</div>
+          ${topAssistersHtml}
+        </div>
+        <div>
+          <div style="font-weight:700; font-size:0.8rem; color:#334155; margin-bottom:2px;">🧤 최다 선방 TOP 3</div>
+          ${topSaversHtml}
+        </div>
       </div>
     </div>
   `;
@@ -353,17 +455,16 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
     const total = stat.total;
     const winRate = ((stat.wins/total)*100).toFixed(1);
     
-    // 💡 [요청 반영 1] 서머리에 평균 득점/실점 항목 추가
     const avgGoalsFor = (stat.goalsFor / total).toFixed(1);
     const avgGoalsAgainst = (stat.goalsAgainst / total).toFixed(1);
     const avgPoss = (stat.posSum / total).toFixed(1);
 
-    // DB user_opponent_streaks 테이블 데이터 불러오기
+    // DB streak 정보 및 무패/무승 세부 계산
     const dbStreak = streakDataMap[opName] || {};
     const maxWin = dbStreak.max_win_streak ?? 0;
     const maxLose = dbStreak.max_lose_streak ?? 0;
-    const maxUnbeaten = dbStreak.max_unbeaten_streak ?? 0;
-    const maxWinless = dbStreak.max_winless_streak ?? 0;
+
+    const { maxUnbeaten, maxUnbeatenDetail, maxWinless, maxWinlessDetail } = computeStreakDetails(stat.matches);
 
     const isOpWook = WOOK_NICKNAMES.includes(opName);
     const hasWook = isSelectedWook || isOpWook;
@@ -424,7 +525,7 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
         </div>
       </div>
 
-      <!-- 서머리 UI 통산 최다 연속 기록 칩 -->
+      <!-- 서머리 UI 통산 최다 연속 기록 칩 ([승/무/패] 세부 기록 포함) -->
       <div class="op-streak-summary">
         <div class="streak-item">
           <span class="streak-label">🔥 최다 연승</span>
@@ -436,11 +537,11 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
         </div>
         <div class="streak-item">
           <span class="streak-label">🛡️ 최다 무패</span>
-          <span class="streak-val" style="color:#1d4ed8;">${maxUnbeaten}경기</span>
+          <span class="streak-val" style="color:#1d4ed8;">${maxUnbeaten}경기 (${maxUnbeatenDetail})</span>
         </div>
         <div class="streak-item">
           <span class="streak-label">⚠️ 최다 무승</span>
-          <span class="streak-val" style="color:#b45309;">${maxWinless}경기</span>
+          <span class="streak-val" style="color:#b45309;">${maxWinless}경기 (${maxWinlessDetail})</span>
         </div>
       </div>
 
@@ -472,11 +573,11 @@ function renderOpponentCards(selectedNickname, opponentGroup) {
   container.style.display = "flex";
 }
 
-// 9. 상대별 상세 분석 렌더링
+// 9. 상대별 상세 분석 렌더링 (TOP 3 및 세부 기록 추가)
 function renderDetailCard(userNick, opponentNick, stat) {
   const detailCard = document.getElementById("detailCard");
 
-  // 실제 match_date 기준 최신순 정렬
+  // 최신순 정렬
   const matches = [...stat.matches].sort((a, b) => {
     const dateStrA = a.matches ? a.matches.match_date : (a.real_match_date || a.match_date);
     const dateStrB = b.matches ? b.matches.match_date : (b.real_match_date || b.match_date);
@@ -505,13 +606,29 @@ function renderDetailCard(userNick, opponentNick, stat) {
     matchesContainer.appendChild(chip);
   });
 
-  // --- 현재 진행 중인 연속 기록 계산 ---
-  let winS = 0, loseS = 0, winlessS = 0, unbeatenS = 0;
+  // --- 현재 진행 중인 연속 기록 및 [승/무/패] 카운트 연산 ---
+  let winS = 0, loseS = 0;
+  let winlessS = 0, winlessD = 0, winlessL = 0;
+  let unbeatenS = 0, unbeatenW = 0, unbeatenD = 0;
 
   for (let m of matches) { if (m.match_result === '승') winS++; else break; }
   for (let m of matches) { if (m.match_result === '패') loseS++; else break; }
-  for (let m of matches) { if (m.match_result !== '승') winlessS++; else break; }
-  for (let m of matches) { if (m.match_result !== '패') unbeatenS++; else break; }
+  
+  for (let m of matches) {
+    if (m.match_result !== '승') {
+      winlessS++;
+      if (m.match_result === '무') winlessD++;
+      if (m.match_result === '패') winlessL++;
+    } else break;
+  }
+  
+  for (let m of matches) {
+    if (m.match_result !== '패') {
+      unbeatenS++;
+      if (m.match_result === '승') unbeatenW++;
+      if (m.match_result === '무') unbeatenD++;
+    } else break;
+  }
 
   let streakEl = document.getElementById("streakBadge");
   streakEl.className = "streak-badge"; 
@@ -522,11 +639,11 @@ function renderDetailCard(userNick, opponentNick, stat) {
   if (winS >= 2) { badgeTexts.push(`${winS}연승 중! 🔥`); badgeColorClass = "good"; }
   if (loseS >= 2) { badgeTexts.push(`${loseS}연패 중... 😭`); badgeColorClass = "bad"; }
   if (winlessS >= 2 && winlessS !== loseS) {
-    badgeTexts.push(`${winlessS}경기 연속 무승 중 ⚠️`);
+    badgeTexts.push(`${winlessS}경기 연속 무승 중 (${winlessD}무 ${winlessL}패) ⚠️`);
     if (badgeColorClass === "neutral") badgeColorClass = "warning";
   }
   if (unbeatenS >= 2 && unbeatenS !== winS) {
-    badgeTexts.push(`${unbeatenS}경기 연속 무패 중 🛡️`);
+    badgeTexts.push(`${unbeatenS}경기 연속 무패 중 (${unbeatenW}승 ${unbeatenD}무) 🛡️`);
     if (badgeColorClass === "neutral") badgeColorClass = "good";
   }
 
@@ -538,7 +655,7 @@ function renderDetailCard(userNick, opponentNick, stat) {
     streakEl.classList.add("neutral");
   }
 
-  // 💡 [요청 반영 2] 유효슛 지표 계산 및 반영
+  // 슈팅 / 유효 슈팅
   const avgShoots = (stat.shootSum / totalMatches).toFixed(1);
   const avgEffShoots = (stat.effShootSum / totalMatches).toFixed(1);
   const effRatio = stat.shootSum > 0 ? ((stat.effShootSum / stat.shootSum) * 100).toFixed(1) : 0;
@@ -546,13 +663,13 @@ function renderDetailCard(userNick, opponentNick, stat) {
   document.getElementById("avgShootsVal").innerText = `🎯 ${avgEffShoots} / ${avgShoots}회`;
   document.getElementById("effShootRatioSub").innerText = `유효슈팅 비율: ${effRatio}% (총 ${stat.effShootSum}회)`;
 
-  // 평균 득실점 (상세에 그대로 유지)
+  // 평균 득실점
   const avgGoalsFor = (stat.goalsFor / totalMatches).toFixed(1);
   const avgGoalsAgainst = (stat.goalsAgainst / totalMatches).toFixed(1);
   document.getElementById("avgGoals").innerText = `⚽ ${avgGoalsFor} / 🛡️ ${avgGoalsAgainst}`;
   document.getElementById("totalGoalsSub").innerText = `총 ${stat.goalsFor}득 / ${stat.goalsAgainst}실`;
 
-  // --- 선수 통계 계산 ---
+  // --- 선수별 스탯 TOP 3 집계 ---
   const goalMap = {}, assistMap = {}, saveMap = {}, defensiveCoreMap = {}, appMap = {};
 
   matches.forEach(m => {
@@ -574,7 +691,6 @@ function renderDetailCard(userNick, opponentNick, stat) {
       const sv = Number(st.save || st.defending || 0); 
       if (sv > 0) saveMap[spId] = (saveMap[spId] || 0) + sv;
 
-      // 💡 [요청 반영 3] 수비의 핵 (태클 + 인터셉트 + 블락 수치 합산)
       const t = Number(st.tackle || 0);
       const ic = Number(st.intercept || 0);
       const bl = Number(st.block || 0);
@@ -583,32 +699,10 @@ function renderDetailCard(userNick, opponentNick, stat) {
     });
   });
 
-  const getTopPlayer = (map) => {
-    let topId = null, maxVal = 0;
-    for (const id in map) { if (map[id] > maxVal) { maxVal = map[id]; topId = id; } }
-    return { id: topId, count: maxVal };
-  };
-
-  const topScorer = getTopPlayer(goalMap);
-  const topAssister = getTopPlayer(assistMap);
-  const topSaver = getTopPlayer(saveMap);
-  const topDefensiveCore = getTopPlayer(defensiveCoreMap);
-
-  const setMetric = (nameId, detailId, topObj, unit) => {
-    if (topObj.id && appMap[topObj.id]) {
-      const appearances = appMap[topObj.id]; 
-      document.getElementById(nameId).innerText = getPlayerName(topObj.id);
-      document.getElementById(detailId).innerText = `${appearances}경기 ${topObj.count}${unit} (평균 ${(topObj.count / appearances).toFixed(2)})`;
-    } else {
-      document.getElementById(nameId).innerText = "기록 없음";
-      document.getElementById(detailId).innerText = "-";
-    }
-  };
-
-  setMetric("topScorerName", "topScorerDetail", topScorer, "골");
-  setMetric("topAssisterName", "topAssisterDetail", topAssister, "도움");
-  setMetric("topDefenderName", "topDefenderDetail", topSaver, "선방");
-  setMetric("topDefensiveCoreName", "topDefensiveCoreDetail", topDefensiveCore, "회 차단");
+  document.getElementById("topScorerList").innerHTML = getTop3Players(goalMap, appMap, "골");
+  document.getElementById("topAssisterList").innerHTML = getTop3Players(assistMap, appMap, "도움");
+  document.getElementById("topDefenderList").innerHTML = getTop3Players(saveMap, appMap, "선방");
+  document.getElementById("topDefensiveCoreList").innerHTML = getTop3Players(defensiveCoreMap, appMap, "회 차단");
 
   detailCard.style.display = "block";
   detailCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
