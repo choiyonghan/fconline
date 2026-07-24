@@ -1,124 +1,233 @@
 <!DOCTYPE html>
+
 <html lang="ko">
+
 <head>
+
   <meta charset="UTF-8">
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
   <title>FC 온라인 상대전적 분석기</title>
+
   <link rel="stylesheet" href="style.css">
+
   <!-- Supabase JS SDK -->
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 </head>
+
 <body>
 
+
+
   <!-- 모바일 뷰포트 컨테이너 -->
+
   <main class="mobile-wrapper">
+
     <header class="app-header">
+
       <h1>⚽ FC 온라인 상대전적</h1>
+
       <p id="status" class="status-text">사용자 데이터를 불러오는 중...</p>
+
     </header>
 
+
+
     <!-- 매치 타입 선택 버튼 (커스텀 매치 DEFAULT) -->
+
     <section class="card match-type-selection">
+
       <h2 class="section-title">🎮 매치 타입 선택</h2>
+
       <div class="match-type-buttons">
+
         <button id="btnMatchTypeCustom" class="btn-match-type active">커스텀 매치</button>
+
         <button id="btnMatchTypeOfficial" class="btn-match-type">공식 경기</button>
+
       </div>
+
     </section>
+
+
 
     <!-- 유저 선택 버튼 목록 -->
+
     <section class="card user-selection">
+
       <h2 class="section-title">👤 분석할 유저 선택</h2>
+
       <div id="nicknameButtons" class="nickname-buttons-grid"></div>
+
     </section>
+
+
 
     <!-- 요약 정보 및 날짜 필터 -->
+
     <section id="summaryInfo" class="summary-section" style="display: none;">
+
       <div class="card filter-card">
+
         <div id="dateRange" class="date-range-text">📅 분석 기간 (KST): -</div>
+
         <div class="date-filter-group">
+
           <div class="date-inputs">
+
             <input type="date" id="startDate" class="date-input">
+
             <span>~</span>
+
             <input type="date" id="endDate" class="date-input">
+
           </div>
+
           <div class="date-buttons">
+
             <button id="btnSearchDate" class="btn btn-primary">조회</button>
+
             <button id="btnResetDate" class="btn btn-secondary">초기화</button>
+
           </div>
+
         </div>
+
       </div>
+
+
 
       <!-- 종합 전적 카드 컨테이너 -->
+
       <div id="overallStatsContainer"></div>
+
     </section>
 
+
+
     <!-- 상대 카드 리스트 및 아코디언 영역 -->
+
     <section id="opponentList" class="opponent-list" style="display: none;"></section>
 
+
+
     <!-- 상세 리포트 카드 -->
+
     <div class="detail-card" id="detailCard" style="display: none;">
+
       <div class="detail-header">
+
         <div class="detail-title" id="detailTitle">상대 분석 상세 리포트</div>
+
         <div class="streak-badge" id="streakBadge">-</div>
+
       </div>
+
       
+
       <!-- 요약 뱃지 모음 -->
+
       <div class="match-summary-badges">
+
         <span class="badge info-badge" id="matchCountBadge">총 -경기</span>
+
         <span class="badge info-badge" id="winRateBadge">승률 -%</span>
+
       </div>
+
+
 
       <!-- 최근 경기 결과 -->
+
       <div class="recent-matches-section">
+
         <div class="recent-matches-title">📜 최근 경기 결과</div>
+
         <div class="recent-matches-container" id="recentMatchesContainer"></div>
+
       </div>
+
+
 
       <!-- 상세 지표 그리드 -->
+
       <div class="dashboard-grid">
+
         <div class="metric-box">
+
           <div class="metric-label">평균 득실점</div>
+
           <div class="metric-value" id="avgGoals">⚽ 0골 / 🛡️ 0실점</div>
+
           <div class="metric-sub" id="totalGoalsSub">총 0득점 / 총 0실점</div>
+
         </div>
 
+
+
         <div class="metric-box">
+
           <div class="metric-label">🎯 평균 슈팅 & 유효슈팅</div>
+
           <div class="metric-value" id="avgShootsVal">0 / 0회</div>
+
           <div class="metric-sub" id="effShootRatioSub">유효슈팅률 0%</div>
+
         </div>
 
-        <!-- 💡 서머리에서 이동 및 추가된 평균 점유율 카드 -->
-        <div class="metric-box">
-          <div class="metric-label">📊 평균 점유율</div>
-          <div class="metric-value" id="avgPossessionVal">📊 0%</div>
-          <div class="metric-sub">경기당 평균 점유율</div>
-        </div>
+
 
         <div class="metric-box full-width">
+
           <div class="metric-label">⚽ 최다 득점 TOP 3</div>
+
           <div class="metric-top-list" id="topScorerList">기록 없음</div>
+
         </div>
 
+
+
         <div class="metric-box full-width">
+
           <div class="metric-label">👟 최다 도움 TOP 3</div>
+
           <div class="metric-top-list" id="topAssisterList">기록 없음</div>
+
         </div>
 
+
+
         <div class="metric-box full-width">
+
           <div class="metric-label">🧤 최다 선방 TOP 3</div>
+
           <div class="metric-top-list" id="topDefenderList">기록 없음</div>
+
         </div>
 
+
+
         <div class="metric-box full-width">
+
           <div class="metric-label">🛡️ 수비의 핵 (태클/차단) TOP 3</div>
+
           <div class="metric-top-list" id="topDefensiveCoreList">기록 없음</div>
+
         </div>
+
       </div>
+
     </div>
+
   </main>
 
+
+
   <script src="app.js"></script>
+
 </body>
+
 </html>
